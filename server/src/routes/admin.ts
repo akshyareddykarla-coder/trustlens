@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { isGeminiAvailable } from '../services/geminiService.js';
+import { isSupabaseAvailable, checkSupabaseHealth } from '../services/supabaseService.js';
 import fs from 'fs';
 import { config } from '../config.js';
 
@@ -112,7 +113,7 @@ router.get('/audit-logs', (req: Request, res: Response): void => {
 });
 
 // System health check
-router.get('/health', (req: Request, res: Response): void => {
+router.get('/health', async (req: Request, res: Response): Promise<void> => {
   let uploadsCount = 0;
   if (fs.existsSync(config.uploadsDir)) {
     uploadsCount = fs.readdirSync(config.uploadsDir).length;
@@ -120,6 +121,7 @@ router.get('/health', (req: Request, res: Response): void => {
 
   const analysisCount = (db.prepare('SELECT COUNT(*) as c FROM analyses').get() as any)?.c || 0;
   const usersCount = (db.prepare('SELECT COUNT(*) as c FROM profiles').get() as any)?.c || 0;
+  const supabaseHealth = await checkSupabaseHealth();
 
   res.json({
     systemStatus: 'healthy',
@@ -131,6 +133,13 @@ router.get('/health', (req: Request, res: Response): void => {
       totalAnalyses: analysisCount,
     },
     integrations: {
+      supabase: {
+        configured: isSupabaseAvailable(),
+        status: supabaseHealth.connected ? 'connected' : 'not_connected',
+        url: config.supabase.url,
+        authStatus: supabaseHealth.authStatus || null,
+        error: supabaseHealth.error || null,
+      },
       geminiAi: {
         configured: isGeminiAvailable(),
         status: isGeminiAvailable() ? 'operational' : 'offline_fallback_active',

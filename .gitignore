@@ -18,6 +18,9 @@ server/uploads/
 
 # Environment variables & secrets
 .env
+.env*
+**/.env
+**/.env*
 .env.local
 .env.*.local
 

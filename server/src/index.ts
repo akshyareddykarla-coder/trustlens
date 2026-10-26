@@ -16,6 +16,8 @@ import educationRoutes from './routes/education.js';
 import notificationsRoutes from './routes/notifications.js';
 import profileRoutes from './routes/profile.js';
 import adminRoutes from './routes/admin.js';
+import { isGeminiAvailable } from './services/geminiService.js';
+import { isSupabaseAvailable } from './services/supabaseService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,7 +50,17 @@ app.use('/api/v1/admin', adminRoutes);
 
 // Base health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'TrustLens API', version: '1.0.0', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    name: 'TrustLens API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    services: {
+      database: 'connected (SQLite node:sqlite)',
+      supabase: isSupabaseAvailable() ? 'connected' : 'not_configured',
+      geminiAi: isGeminiAvailable() ? 'operational' : 'offline_fallback_active',
+    },
+  });
 });
 
 // 404 handler
