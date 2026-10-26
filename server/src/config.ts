@@ -17,7 +17,8 @@ export const config = {
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },
   gemini: {
-    apiKey: process.env.GEMINI_API_KEY || '',
+    apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '',
+    model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
   },
   uploadsDir: path.resolve(__dirname, '../uploads'),
   dataDir: path.resolve(__dirname, '../data'),

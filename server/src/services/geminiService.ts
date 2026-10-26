@@ -2,12 +2,20 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config.js';
 
 let genAI: GoogleGenerativeAI | null = null;
-if (config.gemini.apiKey) {
-  genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+
+export function getGenAI(): GoogleGenerativeAI | null {
+  const key = config.gemini.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!key || key === 'your-gemini-api-key-here') {
+    return null;
+  }
+  if (!genAI) {
+    genAI = new GoogleGenerativeAI(key);
+  }
+  return genAI;
 }
 
 export function isGeminiAvailable(): boolean {
-  return !!config.gemini.apiKey && config.gemini.apiKey !== 'your-gemini-api-key-here';
+  return getGenAI() !== null;
 }
 
 /**
@@ -32,10 +40,16 @@ export async function askAssistant(
     };
   }
 
-  try {
-    const model = genAI!.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const candidateModels = [
+    config.gemini.model || 'gemini-3.5-flash',
+    'gemini-3.5-flash',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash'
+  ];
+  // Remove duplicates while preserving order
+  const modelsToTry = Array.from(new Set(candidateModels));
 
-    let systemPrompt = `You are the TrustLens AI Verification Assistant. Your objective is to help citizens and researchers understand misinformation, linguistic risk indicators, source credibility, and media literacy.
+  let systemPrompt = `You are the TrustLens AI Verification Assistant. Your objective is to help citizens and researchers understand misinformation, linguistic risk indicators, source credibility, and media literacy.
 CRITICAL SAFETY & ETHICAL RULES:
 1. NEVER claim that AI can definitively prove truth or falsehood for every claim. Explain degrees of credibility and uncertainty.
 2. Emphasize that emotional or urgent language does NOT necessarily make a claim false, but serves as a signal to verify carefully.
@@ -43,29 +57,42 @@ CRITICAL SAFETY & ETHICAL RULES:
 4. Encourage checking primary sources, official government gazettes, and reputable fact-checkers.
 5. If answering in Telugu or Hindi, respond fluently in that language when requested or appropriate.`;
 
-    if (context && context.claimText) {
-      systemPrompt += `\n\nCURRENT CLAIM UNDER INVESTIGATION:
+  if (context && context.claimText) {
+    systemPrompt += `\n\nCURRENT CLAIM UNDER INVESTIGATION:
 Claim: "${context.claimText}"
 Calculated Risk Level: ${context.riskLevel || 'Needs Verification'}
 Observed Risk Indicators: ${(context.indicators || []).join(', ') || 'None flagged'}
 Retrieved Evidence Excerpts: ${(context.evidence || []).join(' | ') || 'No external fact-check entries found'}`;
-    }
-
-    const prompt = `${systemPrompt}\n\nUser Question: ${question}\n\nPlease provide a clear, neutral, explainable answer with appropriate nuance.`;
-
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    return {
-      reply: text,
-      usedModel: 'Google Gemini 1.5 Flash',
-    };
-  } catch (error: any) {
-    console.error('Gemini API call failed:', error.message);
-    return {
-      reply: `Note: External Gemini API call encountered an issue (${error.message}). Falling back to local reasoning engine:\n\n${generateLocalAssistantResponse(question, context)}`,
-      usedModel: 'TrustLens Local Engine (Gemini fallback)',
-    };
   }
+
+  const prompt = `${systemPrompt}\n\nUser Question: ${question}\n\nPlease provide a clear, neutral, explainable answer with appropriate nuance.`;
+
+  let lastError: any = null;
+
+  for (const modelName of modelsToTry) {
+    try {
+      const model = getGenAI()!.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      return {
+        reply: text,
+        usedModel: `Google Gemini (${modelName})`,
+      };
+    } catch (err: any) {
+      lastError = err;
+      // If it's a 404/not found, continue to next candidate model
+      if (err.message && (err.message.includes('404') || err.message.includes('not found') || err.message.includes('no longer available'))) {
+        continue;
+      }
+      break;
+    }
+  }
+
+  console.error('Gemini API call failed across candidates:', lastError?.message);
+  return {
+    reply: `Note: External Gemini API call encountered an issue (${lastError?.message || 'Unknown error'}). Falling back to local reasoning engine:\n\n${generateLocalAssistantResponse(question, context)}`,
+    usedModel: 'TrustLens Local Engine (Gemini fallback)',
+  };
 }
 
 /**
