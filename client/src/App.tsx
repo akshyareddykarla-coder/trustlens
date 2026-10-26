@@ -27,6 +27,7 @@ import { EducationalHubPage } from './pages/EducationalHubPage.js';
 import { LegalRightsPage } from './pages/LegalRightsPage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
 import { AdminPanelPage } from './pages/AdminPanelPage.js';
+import { ExpertPortalPage } from './pages/ExpertPortalPage.js';
 
 // Authenticated Application Shell (Sidebar + Header + Main + Floating AI Assistant)
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -250,6 +251,14 @@ export const App: React.FC = () => {
                 element={
                   <AppLayout>
                     <ReportCenterPage />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/expert"
+                element={
+                  <AppLayout>
+                    <ExpertPortalPage />
                   </AppLayout>
                 }
               />

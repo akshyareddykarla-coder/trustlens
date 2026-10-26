@@ -22,6 +22,23 @@ declare global {
 export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
+  // Development expert role bypass
+  const devExpertRole = req.headers['x-dev-expert-role'] as string;
+  if (devExpertRole) {
+    if (devExpertRole === 'journalist' || devExpertRole === 'demo-expert-journo' || devExpertRole === 'exp_demo_journalist') {
+      req.user = { id: 'demo-expert-journo', email: 'journalist@demo.trustlens', role: 'expert', displayName: 'Demo Journalist' };
+      return next();
+    }
+    if (devExpertRole === 'lawyer' || devExpertRole === 'demo-expert-lawyer' || devExpertRole === 'exp_demo_lawyer') {
+      req.user = { id: 'demo-expert-lawyer', email: 'lawyer@demo.trustlens', role: 'expert', displayName: 'Demo Lawyer' };
+      return next();
+    }
+    if (devExpertRole === 'fact-checker' || devExpertRole === 'factchecker' || devExpertRole === 'demo-expert-factchecker' || devExpertRole === 'exp_demo_factchecker') {
+      req.user = { id: 'demo-expert-factchecker', email: 'factcheck@demo.trustlens', role: 'expert', displayName: 'Demo Fact-Checker' };
+      return next();
+    }
+  }
+
   // Development bypass header if token not provided
   const devUserId = req.headers['x-dev-user-id'] as string;
   if (devUserId) {
@@ -33,6 +50,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         email: user.email,
         role: user.role || 'user',
         displayName: user.display_name,
+      };
+      return next();
+    } else {
+      req.user = {
+        id: devUserId,
+        email: 'demo-user@trustlens.org',
+        role: 'user',
+        displayName: 'Demo User',
       };
       return next();
     }

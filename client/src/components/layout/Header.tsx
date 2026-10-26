@@ -38,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
   // Derive page title from current pathname
   const getPageTitle = (path: string) => {
+    if (path.includes('/expert')) return 'Expert Verification Portal';
     if (path.includes('/verify')) return 'Verify Content';
     if (path.includes('/analysis/')) return 'Investigation Report';
     if (path.includes('/history')) return 'Investigation History';

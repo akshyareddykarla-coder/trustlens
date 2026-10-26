@@ -4,6 +4,7 @@ import {
   AlertOctagon,
   FileText,
   Building,
+  Building2,
   Award,
   Search,
   ExternalLink,
@@ -18,13 +19,22 @@ import {
   Languages,
   CheckCircle2,
   Scale,
+  Newspaper,
+  Briefcase,
+  Clock,
+  MessageSquare,
+  Info,
+  UserCheck,
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { useAuth } from '../context/AuthContext.js';
+import { DemoModeSwitcher } from '../components/experts/DemoModeSwitcher.js';
+import { RequestAssistanceModal } from '../components/experts/RequestAssistanceModal.js';
+import { RequestDetailModal } from '../components/experts/RequestDetailModal.js';
 
 export const ReportCenterPage: React.FC = () => {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // 3 Mandated Tabs
   const [activeTab, setActiveTab] = useState<'prepare' | 'official' | 'experts'>('prepare');
@@ -49,11 +59,30 @@ export const ReportCenterPage: React.FC = () => {
   const [resSearch, setResSearch] = useState('');
 
   // Tab 3: Expert Connect State
+  const [expertSubTab, setExpertSubTab] = useState<'directory' | 'my-requests'>('directory');
+  const [expertCategory, setExpertCategory] = useState<string>('all');
   const [experts, setExperts] = useState<any[]>([]);
   const [expertLoading, setExpertLoading] = useState(false);
   const [expertSearch, setExpertSearch] = useState('');
-  const [selectedExpert, setSelectedExpert] = useState<any | null>(null);
-  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+
+  // Modals & User Requests
+  const [requestModalExpert, setRequestModalExpert] = useState<any | null>(null);
+  const [myRequests, setMyRequests] = useState<any[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
+  const [requestSuccessBanner, setRequestSuccessBanner] = useState<string | null>(null);
+
+  // Sync with searchParams (e.g. ?tab=experts&subtab=my-requests)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'experts' || tabParam === 'official' || tabParam === 'prepare') {
+      setActiveTab(tabParam);
+    }
+    const subtabParam = searchParams.get('subtab');
+    if (subtabParam === 'my-requests') {
+      setExpertSubTab('my-requests');
+    }
+  }, [searchParams]);
 
   // Load Resources when Tab 2 active
   useEffect(() => {
@@ -66,8 +95,9 @@ export const ReportCenterPage: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'experts') {
       fetchExperts();
+      fetchMyRequests();
     }
-  }, [activeTab]);
+  }, [activeTab, expertCategory, expertSearch]);
 
   const fetchResources = async () => {
     setResLoading(true);
@@ -87,12 +117,27 @@ export const ReportCenterPage: React.FC = () => {
   const fetchExperts = async () => {
     setExpertLoading(true);
     try {
-      const data = await api.getExperts();
+      const params = new URLSearchParams();
+      if (expertCategory !== 'all') params.append('category', expertCategory);
+      if (expertSearch.trim()) params.append('search', expertSearch.trim());
+      const data = await api.getExperts(params.toString() ? `?${params.toString()}` : '');
       setExperts(data.experts || []);
     } catch {
       // Ignore
     } finally {
       setExpertLoading(false);
+    }
+  };
+
+  const fetchMyRequests = async () => {
+    setRequestsLoading(true);
+    try {
+      const data = await api.getExpertRequests();
+      setMyRequests(data.requests || []);
+    } catch {
+      // Ignore
+    } finally {
+      setRequestsLoading(false);
     }
   };
 
@@ -551,167 +596,363 @@ The information submitted in this draft has been compiled in good faith for stat
       {/* TAB 3: EXPERT CONNECT */}
       {activeTab === 'experts' && (
         <div className="space-y-6">
-          {/* Expert Directory Search */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-sm">
-            <div className="w-full sm:w-96 relative">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                value={expertSearch}
-                onChange={(e) => setExpertSearch(e.target.value)}
-                placeholder="Search expert by name, organization, or specialty..."
-                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-[#E2E8F0] dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100"
-              />
+          {/* Demonstration Mode Notice & Role Switcher */}
+          <DemoModeSwitcher onPersonaChange={() => { fetchMyRequests(); }} />
+
+          {/* Subnavigation: Directory vs My Requests */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl w-fit">
+              <button
+                onClick={() => setExpertSubTab('directory')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                  expertSubTab === 'directory'
+                    ? 'bg-white dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5 text-[#14B8A6]" />
+                <span>Expert Directory</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setExpertSubTab('my-requests');
+                  fetchMyRequests();
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                  expertSubTab === 'my-requests'
+                    ? 'bg-white dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-[#14B8A6]" />
+                <span>My Requests</span>
+                {myRequests.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#14B8A6] text-white">
+                    {myRequests.length}
+                  </span>
+                )}
+              </button>
             </div>
-            <div className="text-xs text-slate-400">
-              {filteredExperts.length} verified investigative specialists
-            </div>
-          </div>
 
-          {/* Expert Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {expertLoading ? (
-              <div className="col-span-3 py-12 text-center text-xs text-slate-400">Loading expert profiles...</div>
-            ) : filteredExperts.length === 0 ? (
-              <div className="col-span-3 py-12 text-center text-xs text-slate-400">No accredited experts match your search query.</div>
-            ) : (
-              filteredExperts.map((exp) => (
-                <div
-                  key={exp.id}
-                  className="p-5 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800 flex flex-col justify-between shadow-sm hover:border-[#14B8A6]/50 transition-colors"
-                >
-                  <div>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0B1220] to-[#14B8A6] text-white font-bold flex items-center justify-center text-sm shadow-sm flex-shrink-0">
-                        {exp.full_name?.charAt(0) || 'E'}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
-                            {exp.full_name}
-                          </h3>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
-                        </div>
-                        <div className="text-[11px] text-slate-500 truncate">{exp.organization}</div>
-                        <span className="inline-block mt-0.5 text-[10px] font-bold text-[#14B8A6] uppercase tracking-wide">
-                          {exp.expertise_area}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3">
-                      {exp.bio}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <span className="text-[10px] text-slate-400">
-                      Verified Casework Ready
-                    </span>
-                    <button
-                      onClick={() => {
-                        setSelectedExpert(exp);
-                        setReviewSubmitted(false);
-                      }}
-                      className="px-3 py-1.5 bg-[#14B8A6] hover:bg-[#0D9488] text-white font-bold text-xs rounded-xl shadow-sm transition-colors"
-                    >
-                      Request Review
-                    </button>
-                  </div>
-                </div>
-              ))
+            {requestSuccessBanner && (
+              <div className="text-xs px-3 py-1.5 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 font-medium flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{requestSuccessBanner}</span>
+              </div>
             )}
           </div>
 
-          {/* Expert Review Request Modal */}
-          {selectedExpert && (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white dark:bg-[#0B1220] rounded-3xl max-w-lg w-full p-6 border border-[#E2E8F0] dark:border-slate-800 shadow-2xl">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                      Submit Claim to {selectedExpert.full_name}
-                    </h3>
-                    <p className="text-[11px] text-slate-400">{selectedExpert.organization}</p>
+          {/* SUBTAB 1: DIRECTORY */}
+          {expertSubTab === 'directory' && (
+            <div className="space-y-6">
+              {/* Category Filter Pills & Search Bar */}
+              <div className="p-4 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
+                  {/* Category Pills */}
+                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    {[
+                      { id: 'all', label: 'All Experts' },
+                      { id: 'journalists', label: 'Journalists' },
+                      { id: 'fact_checkers', label: 'Fact-Checkers' },
+                      { id: 'legal_professionals', label: 'Legal Professionals' },
+                      { id: 'organizations', label: 'Organizations' },
+                    ].map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setExpertCategory(cat.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                          expertCategory === cat.id
+                            ? 'bg-[#14B8A6] text-white shadow-sm'
+                            : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
                   </div>
-                  <button
-                    onClick={() => setSelectedExpert(null)}
-                    className="text-xs text-slate-400 hover:text-slate-600 font-bold"
-                  >
-                    Close
-                  </button>
+
+                  {/* Search Input */}
+                  <div className="w-full md:w-80 relative">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={expertSearch}
+                      onChange={(e) => setExpertSearch(e.target.value)}
+                      placeholder="Search by name, organization, or specialty..."
+                      className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#14B8A6]"
+                    />
+                  </div>
                 </div>
 
-                {reviewSubmitted ? (
-                  <div className="py-8 text-center space-y-2">
-                    <CheckCircle2 className="w-10 h-10 text-[#14B8A6] mx-auto" />
-                    <div className="font-bold text-sm text-slate-800 dark:text-slate-200">
-                      Review Request Submitted
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      Your claim has been queued for specialist assessment. Updates will be visible in notifications.
-                    </p>
-                    <button
-                      onClick={() => setSelectedExpert(null)}
-                      className="mt-3 px-4 py-2 bg-[#14B8A6] text-white rounded-xl text-xs font-bold"
-                    >
-                      Done
-                    </button>
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <span>
+                    Showing {experts.length} accredited investigative & legal profiles
+                  </span>
+                  <span>
+                    Official verified public sources & demonstration desks
+                  </span>
+                </div>
+              </div>
+
+              {/* Expert Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {expertLoading ? (
+                  <div className="col-span-3 py-16 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+                    <div className="w-7 h-7 border-2 border-[#14B8A6] border-t-transparent rounded-full animate-spin" />
+                    <span>Loading directory profiles...</span>
+                  </div>
+                ) : experts.length === 0 ? (
+                  <div className="col-span-3 py-16 text-center text-xs text-slate-400 bg-white dark:bg-[#0B1220] rounded-3xl border border-slate-200 dark:border-slate-800 p-8">
+                    <Info className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-semibold text-slate-600 dark:text-slate-300">No experts found</p>
+                    <p className="mt-1">Try selecting "All Experts" or adjusting your search terms.</p>
                   </div>
                 ) : (
-                  <form
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      try {
-                        await api.submitExpertReview({
-                          claimText: description || 'Suspicious viral forward submitted for expert casework.',
-                          justification: 'Requested specialist forensics evaluation.',
-                          expertId: selectedExpert.id,
-                        });
-                        setReviewSubmitted(true);
-                      } catch (err: any) {
-                        alert(err.message || 'Submission failed');
-                      }
-                    }}
-                    className="mt-4 space-y-3"
-                  >
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Claim Text for Expert Review
-                      </label>
-                      <textarea
-                        rows={4}
-                        required
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Paste claim text to submit..."
-                        className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl"
-                      />
-                    </div>
+                  experts.map((exp) => {
+                    // Determine category icon
+                    let CategoryIcon = UserCheck;
+                    if (exp.category === 'journalists') CategoryIcon = Newspaper;
+                    else if (exp.category === 'fact_checkers') CategoryIcon = ShieldCheck;
+                    else if (exp.category === 'legal_professionals') CategoryIcon = Scale;
+                    else if (exp.category === 'organizations') CategoryIcon = Building2;
 
-                    <p className="text-[11px] text-slate-500">
-                      Notice: Requests are evaluated according to statutory public interest and capacity.
-                    </p>
+                    return (
+                      <div
+                        key={exp.id}
+                        className="p-6 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800 flex flex-col justify-between shadow-sm hover:border-[#14B8A6]/40 transition-all"
+                      >
+                        <div>
+                          {/* Card Top: Badges */}
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            {exp.is_public_reference ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                PUBLIC REFERENCE
+                              </span>
+                            ) : exp.is_demo_expert ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                DEMO EXPERT
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/30">
+                                PARTICIPATING EXPERT
+                              </span>
+                            )}
 
-                    <div className="pt-2 flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedExpert(null)}
-                        className="px-4 py-2 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-[#14B8A6] hover:bg-[#0D9488] text-white rounded-xl text-xs font-bold shadow"
-                      >
-                        Submit Request
-                      </button>
-                    </div>
-                  </form>
+                            <span className="text-[10px] font-semibold text-slate-400 capitalize">
+                              {exp.category?.replace('_', ' ')}
+                            </span>
+                          </div>
+
+                          {/* Profile Header */}
+                          <div className="flex items-start gap-3.5 mb-3">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[#14B8A6] flex items-center justify-center flex-shrink-0 border border-slate-200 dark:border-slate-700">
+                              <CategoryIcon className="w-6 h-6" />
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                                {exp.full_name}
+                              </h3>
+                              <p className="text-xs text-slate-600 dark:text-slate-400 truncate font-medium">
+                                {exp.title}
+                              </p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-500 truncate">
+                                {exp.organization}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Specialization tag */}
+                          <div className="mb-3">
+                            <span className="inline-block px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-[#14B8A6]/10 text-[#14B8A6]">
+                              {exp.expertise_area}
+                            </span>
+                          </div>
+
+                          {/* Bio */}
+                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3">
+                            {exp.bio}
+                          </p>
+
+                          {/* Transparency notice for public references */}
+                          {exp.is_public_reference && (
+                            <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-500 italic">
+                              Documented public profile. Not a TrustLens partner.
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Card Action */}
+                        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+                          {exp.is_public_reference || !exp.can_receive_requests ? (
+                            <a
+                              href={exp.reference_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors"
+                            >
+                              <span>View Official Profile</span>
+                              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => setRequestModalExpert(exp)}
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-white font-bold text-xs shadow-sm transition-colors"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Request Assistance</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
+          )}
+
+          {/* SUBTAB 2: MY REQUESTS */}
+          {expertSubTab === 'my-requests' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    My Verification Requests
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Track submitted inquiries, review statuses, and read expert findings.
+                  </p>
+                </div>
+                <button
+                  onClick={fetchMyRequests}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {requestsLoading ? (
+                <div className="py-16 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+                  <div className="w-7 h-7 border-2 border-[#14B8A6] border-t-transparent rounded-full animate-spin" />
+                  <span>Loading your submitted requests...</span>
+                </div>
+              ) : myRequests.length === 0 ? (
+                <div className="py-16 text-center text-xs text-slate-400 bg-white dark:bg-[#0B1220] rounded-3xl border border-slate-200 dark:border-slate-800 p-8 space-y-3">
+                  <MessageSquare className="w-10 h-10 text-slate-300 mx-auto" />
+                  <div>
+                    <p className="font-bold text-sm text-slate-700 dark:text-slate-200">
+                      No requests submitted yet
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                      You can request assistance from any of our participating demo desks (Journalist, Fact-Checker, or Lawyer) in the Expert Directory.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setExpertSubTab('directory')}
+                    className="mt-2 px-4 py-2 bg-[#14B8A6] text-white rounded-xl text-xs font-bold shadow-sm"
+                  >
+                    Open Expert Directory
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myRequests.map((req) => {
+                    const statusColors: Record<string, string> = {
+                      pending: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+                      accepted: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+                      in_review: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+                      responded: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
+                      closed: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+                      declined: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+                    };
+
+                    return (
+                      <div
+                        key={req.id}
+                        className="p-5 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-[#14B8A6]/40 transition-colors"
+                      >
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-[#14B8A6]">
+                              {req.id}
+                            </span>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
+                                statusColors[req.status] || 'bg-slate-100 text-slate-600 border-slate-200'
+                              }`}
+                            >
+                              {req.status?.replace('_', ' ')}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              • Submitted on {new Date(req.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                            {req.subject}
+                          </h4>
+
+                          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                            <span>Assigned Desk: <strong className="text-slate-700 dark:text-slate-300">{req.expert_name || 'Desk Specialist'}</strong></span>
+                            {req.expert_organization && <span>({req.expert_organization})</span>}
+                          </div>
+
+                          {/* Response snippet */}
+                          {req.response_text ? (
+                            <div className="mt-2 p-2.5 rounded-xl bg-[#14B8A6]/5 border border-[#14B8A6]/20 text-xs text-slate-700 dark:text-slate-300">
+                              <span className="font-bold text-[#14B8A6] mr-1.5">Expert Response:</span>
+                              <span className="line-clamp-2">{req.response_text}</span>
+                            </div>
+                          ) : req.status === 'declined' ? (
+                            <div className="mt-2 p-2 rounded-xl bg-red-500/5 text-xs text-red-600 dark:text-red-400">
+                              Declined: {req.expert_notes || 'Request could not be accommodated.'}
+                            </div>
+                          ) : (
+                            <div className="text-[11px] text-slate-400 italic">
+                              Awaiting review by specialist desk.
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0 self-end md:self-center">
+                          <button
+                            onClick={() => setDetailRequestId(req.id)}
+                            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors"
+                          >
+                            View Case Details
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Request Assistance Modal */}
+          {requestModalExpert && (
+            <RequestAssistanceModal
+              expert={requestModalExpert}
+              initialClaim={description}
+              onClose={() => setRequestModalExpert(null)}
+              onSuccess={(created) => {
+                setRequestModalExpert(null);
+                setRequestSuccessBanner(`Assistance request ${created?.id || ''} submitted successfully!`);
+                setExpertSubTab('my-requests');
+                fetchMyRequests();
+              }}
+            />
+          )}
+
+          {/* Request Detail / Case Thread Modal */}
+          {detailRequestId && (
+            <RequestDetailModal
+              requestId={detailRequestId}
+              onClose={() => setDetailRequestId(null)}
+              onRefresh={fetchMyRequests}
+            />
           )}
         </div>
       )}

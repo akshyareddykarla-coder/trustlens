@@ -199,6 +199,55 @@ export function initDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS expert_profiles (
+      id TEXT PRIMARY KEY,
+      full_name TEXT NOT NULL,
+      title TEXT NOT NULL,
+      organization TEXT NOT NULL,
+      expertise_area TEXT NOT NULL,
+      category TEXT NOT NULL,
+      bio TEXT NOT NULL,
+      official_reference_url TEXT NOT NULL,
+      is_public_reference INTEGER DEFAULT 1,
+      is_demo_expert INTEGER DEFAULT 0,
+      can_receive_requests INTEGER DEFAULT 0,
+      languages_spoken TEXT DEFAULT '["en"]',
+      avatar_url TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS expert_requests (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      user_name TEXT NOT NULL,
+      user_email TEXT NOT NULL,
+      expert_id TEXT NOT NULL,
+      category TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      description TEXT NOT NULL,
+      preferred_language TEXT DEFAULT 'en',
+      attachment_url TEXT,
+      status TEXT DEFAULT 'pending',
+      expert_notes TEXT,
+      response_text TEXT,
+      responded_at TEXT,
+      closed_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS expert_messages (
+      id TEXT PRIMARY KEY,
+      request_id TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+      sender_name TEXT NOT NULL,
+      sender_role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(request_id) REFERENCES expert_requests(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS expert_review_requests (
       id TEXT PRIMARY KEY,
       user_id TEXT,

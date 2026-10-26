@@ -23,10 +23,14 @@ export async function apiRequest<T = any>(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  // If no token, attach stored dev userId if available
+  // If no token or in dev mode, attach stored dev headers if available
   const devUserId = localStorage.getItem('trustlens_dev_user_id');
   if (devUserId && !token) {
     headers.set('x-dev-user-id', devUserId);
+  }
+  const devExpertRole = localStorage.getItem('trustlens_dev_expert_role');
+  if (devExpertRole) {
+    headers.set('x-dev-expert-role', devExpertRole);
   }
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
@@ -77,8 +81,12 @@ export const api = {
   voteClaim: (claimId: string, voteType: 'helpful' | 'unhelpful') => apiRequest(`/community/claims/${claimId}/vote`, { method: 'POST', body: JSON.stringify({ voteType }) }),
   reportClaim: (claimId: string, body: any) => apiRequest(`/community/claims/${claimId}/report`, { method: 'POST', body: JSON.stringify(body) }),
 
-  // Experts
-  getExperts: () => apiRequest('/experts'),
+  // Experts Directory & Requests
+  getExperts: (params: string = '') => apiRequest(`/experts${params}`),
+  createExpertRequest: (body: any) => apiRequest('/experts/requests', { method: 'POST', body: JSON.stringify(body) }),
+  getExpertRequests: (params: string = '') => apiRequest(`/experts/requests${params}`),
+  getExpertRequestById: (id: string) => apiRequest(`/experts/requests/${id}`),
+  updateExpertRequest: (id: string, body: any) => apiRequest(`/experts/requests/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   submitExpertReview: (body: any) => apiRequest('/experts/reviews', { method: 'POST', body: JSON.stringify(body) }),
   getExpertReviews: () => apiRequest('/experts/reviews'),
   updateExpertReview: (id: string, body: any) => apiRequest(`/experts/reviews/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),

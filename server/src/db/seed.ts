@@ -2,6 +2,9 @@ import { db } from './index.js';
 import bcrypt from 'bcryptjs';
 
 export function seedInitialData() {
+  // Always seed expert profiles if empty
+  seedExpertProfiles();
+
   // Check if reporting resources exist
   const countStmt = db.prepare('SELECT COUNT(*) as count FROM reporting_resources');
   const result = countStmt.get() as { count: number };
@@ -233,7 +236,7 @@ When evaluating a disputed factual claim, not all links carry equal evidentiary 
     3
   );
 
-  // 4. Verified Expert Profiles
+  // 4. Verified Expert Profiles (Original)
   const insertExpert = db.prepare(`
     INSERT INTO experts (id, user_id, full_name, expertise_area, bio, organization, verification_status, languages_spoken, avatar_url)
     VALUES (?, ?, ?, ?, ?, ?, 'verified', ?, ?)
@@ -271,6 +274,7 @@ When evaluating a disputed factual claim, not all links carry equal evidentiary 
     '["te", "en"]',
     'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'
   );
+
 
   // 5. Initial Sample Verified Analysis for Demo Continuity
   const insertAnalysis = db.prepare(`
@@ -355,4 +359,153 @@ When evaluating a disputed factual claim, not all links carry equal evidentiary 
   );
 
   console.log('Seeding completed successfully.');
+}
+
+export function seedExpertProfiles() {
+  const count = (db.prepare('SELECT COUNT(*) as count FROM expert_profiles').get() as any)?.count || 0;
+  if (count > 0) return;
+
+  console.log('Seeding expert_profiles directory and public references...');
+  const insertProfile = db.prepare(`
+    INSERT OR REPLACE INTO expert_profiles (
+      id, full_name, title, organization, expertise_area, category, bio, official_reference_url, is_public_reference, is_demo_expert, can_receive_requests, languages_spoken
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  // Public References: Journalists
+  insertProfile.run(
+    'ref-journo-01',
+    'Jency Jacob',
+    'Managing Editor',
+    'BOOM',
+    'Journalism and misinformation verification',
+    'journalists',
+    'Senior journalist and Managing Editor at BOOM Live with extensive experience tracking media manipulation, fact-checking viral claims, and training newsrooms across India.',
+    'https://www.boomlive.in/boom-team',
+    1, 0, 0,
+    '["en", "hi"]'
+  );
+
+  insertProfile.run(
+    'ref-journo-02',
+    'Adrija Bose',
+    'Senior Editor',
+    'BOOM',
+    'Digital misinformation and investigative journalism',
+    'journalists',
+    'Investigative journalist and Senior Editor specializing in gender-based disinformation, social platform rumor dynamics, and digital forensics verification.',
+    'https://www.boomlive.in/boom-team',
+    1, 0, 0,
+    '["en", "hi", "bn"]'
+  );
+
+  // Public References: Fact-Checkers
+  insertProfile.run(
+    'ref-factcheck-01',
+    'Akshay Kumar Appani',
+    'Lead, Fact Checking & Research',
+    'FACTLY',
+    'Fact verification, public policy analysis and open data research',
+    'fact_checkers',
+    'Lead researcher at FACTLY specializing in public policy claims, government gazette cross-referencing, and viral social media narrative investigations.',
+    'https://factlymedia.com/teams/fact-check/',
+    1, 0, 0,
+    '["en", "te", "hi"]'
+  );
+
+  insertProfile.run(
+    'ref-factcheck-02',
+    'Harshavardhan Konda',
+    'Lead Fact-Checker',
+    'FACTLY',
+    'Digital claim verification & open-source intelligence (OSINT)',
+    'fact_checkers',
+    'Fact-checking researcher dedicated to verifying multimedia claims, debunking manipulated media, and tracking coordinated online misinformation.',
+    'https://factlymedia.com/teams/fact-check/',
+    1, 0, 0,
+    '["en", "te"]'
+  );
+
+  insertProfile.run(
+    'ref-factcheck-03',
+    'Sushmitha Ponnala',
+    'Senior Fact-Checker',
+    'FACTLY',
+    'Visual forensics and regional-language claim analysis',
+    'fact_checkers',
+    'Senior fact-checker focusing on vernacular Indian language rumors, digital verification methodologies, and community educational initiatives.',
+    'https://factlymedia.com/teams/fact-check/',
+    1, 0, 0,
+    '["en", "te", "hi"]'
+  );
+
+  // Public Reference: Legal Professional
+  insertProfile.run(
+    'ref-legal-01',
+    'Madhavi Diwan',
+    'Senior Advocate',
+    'Supreme Court of India',
+    'Constitutional law, media regulation and statutory rights',
+    'legal_professionals',
+    'Senior Advocate at the Supreme Court of India and former Additional Solicitor General, specialized in constitutional law, media regulation, and legal protections.',
+    'https://fcn.mcaindia.in/',
+    1, 0, 0,
+    '["en", "hi"]'
+  );
+
+  // Public Reference: Legal Assistance Organization
+  insertProfile.run(
+    'ref-org-01',
+    'Telangana State Legal Services Authority',
+    'Official Legal Aid Organization',
+    'State Legal Services Authority (NALSA Statutory Body)',
+    'Citizen grievance redressal, statutory legal aid and public legal literacy',
+    'organizations',
+    'Statutory body constituted under the Legal Services Authorities Act to provide free, competent legal services to citizens and ensure justice for marginalized communities.',
+    'https://telangana.nalsa.gov.in/legal-aid/',
+    1, 0, 0,
+    '["en", "te", "hi"]'
+  );
+
+  // Participating Demo Experts (Accept Requests)
+  insertProfile.run(
+    'demo-expert-journo',
+    'Demo Journalist',
+    'Senior Investigative Journalist',
+    'TrustLens Demonstration Verification Desk',
+    'News and misinformation verification',
+    'journalists',
+    'Demonstration investigative desk specialized in breaking news verification, press attribution analysis, and identifying synthetic editorial articles.',
+    '#demo',
+    0, 1, 1,
+    '["en", "hi", "te"]'
+  );
+
+  insertProfile.run(
+    'demo-expert-lawyer',
+    'Demo Lawyer',
+    'Legal Guidance Specialist',
+    'TrustLens Cyber Law & Citizen Rights Advisory',
+    'Legal guidance and reporting procedures',
+    'legal_professionals',
+    'Demonstration legal counseling desk providing guidance on cybercrime complaint filing (NCRP), defamation limits, evidence preservation, and IT Act provisions.',
+    '#demo',
+    0, 1, 1,
+    '["en", "hi", "te"]'
+  );
+
+  insertProfile.run(
+    'demo-expert-factchecker',
+    'Demo Fact-Checker',
+    'Principal Verification Analyst',
+    'TrustLens Open Verification Network',
+    'Online claim and evidence review',
+    'fact_checkers',
+    'Demonstration fact-checking desk evaluating suspicious claims against official databases, reverse-image indices, and primary government archives.',
+    '#demo',
+    0, 1, 1,
+    '["en", "hi", "te"]'
+  );
+
+  console.log('Seeded 10 expert profiles successfully.');
 }
