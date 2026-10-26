@@ -35,18 +35,25 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static uploads directory
 app.use('/uploads', express.static(config.uploadsDir));
 
-// API Routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/analyses', analysesRoutes);
-app.use('/api/v1/ocr', ocrRoutes);
-app.use('/api/v1/assistant', assistantRoutes);
-app.use('/api/v1/community', communityRoutes);
-app.use('/api/v1/experts', expertsRoutes);
-app.use('/api/v1/reporting-resources', resourcesRoutes);
-app.use('/api/v1/education', educationRoutes);
-app.use('/api/v1/notifications', notificationsRoutes);
-app.use('/api/v1/profile', profileRoutes);
-app.use('/api/v1/admin', adminRoutes);
+// API Routes (mounted on both /api/v1 and /api for backwards compatibility and resilience)
+const routes = [
+  { path: '/auth', router: authRoutes },
+  { path: '/analyses', router: analysesRoutes },
+  { path: '/ocr', router: ocrRoutes },
+  { path: '/assistant', router: assistantRoutes },
+  { path: '/community', router: communityRoutes },
+  { path: '/experts', router: expertsRoutes },
+  { path: '/reporting-resources', router: resourcesRoutes },
+  { path: '/education', router: educationRoutes },
+  { path: '/notifications', router: notificationsRoutes },
+  { path: '/profile', router: profileRoutes },
+  { path: '/admin', router: adminRoutes },
+];
+
+for (const { path: routePath, router } of routes) {
+  app.use(`/api/v1${routePath}`, router);
+  app.use(`/api${routePath}`, router);
+}
 
 // Base health check
 app.get('/api/health', (req, res) => {

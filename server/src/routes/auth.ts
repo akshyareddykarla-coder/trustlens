@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db } from '../db/index.js';
 import { config } from '../config.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { getSupabase, isSupabaseAvailable } from '../services/supabaseService.js';
 
 const router = Router();
 
@@ -21,7 +22,7 @@ const LoginSchema = z.object({
   password: z.string(),
 });
 
-router.post('/register', (req: Request, res: Response): void => {
+router.post('/register', async (req: Request, res: Response): Promise<void> => {
   const parseResult = RegisterSchema.safeParse(req.body);
   if (!parseResult.success) {
     res.status(400).json({ error: 'Validation failed', details: parseResult.error.flatten() });
@@ -30,7 +31,7 @@ router.post('/register', (req: Request, res: Response): void => {
 
   const { email, password, displayName, preferredLanguage, intendedUse } = parseResult.data;
 
-  // Check existing user
+  // Check existing user in local DB
   const checkStmt = db.prepare('SELECT id FROM profiles WHERE email = ?');
   const existing = checkStmt.get(email.toLowerCase());
   if (existing) {
@@ -38,7 +39,32 @@ router.post('/register', (req: Request, res: Response): void => {
     return;
   }
 
-  const userId = `usr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  let assignedUserId: string | null = null;
+
+  // Attempt sync with Supabase GoTrue Auth if connected
+  if (isSupabaseAvailable()) {
+    try {
+      const { data: supaData, error: supaError } = await getSupabase()!.auth.signUp({
+        email: email.toLowerCase(),
+        password,
+        options: {
+          data: {
+            display_name: displayName,
+            preferred_language: preferredLanguage,
+            intended_use: intendedUse,
+          },
+        },
+      });
+
+      if (supaData?.user?.id) {
+        assignedUserId = supaData.user.id;
+      }
+    } catch (err: any) {
+      console.warn('Supabase Auth signup notice:', err.message);
+    }
+  }
+
+  const userId = assignedUserId || `usr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const passwordHash = bcrypt.hashSync(password, 10);
 
   const insertProfile = db.prepare(`
@@ -83,7 +109,7 @@ router.post('/register', (req: Request, res: Response): void => {
   });
 });
 
-router.post('/login', (req: Request, res: Response): void => {
+router.post('/login', async (req: Request, res: Response): Promise<void> => {
   const parseResult = LoginSchema.safeParse(req.body);
   if (!parseResult.success) {
     res.status(400).json({ error: 'Invalid email or password format.' });
@@ -93,15 +119,53 @@ router.post('/login', (req: Request, res: Response): void => {
   const { email, password } = parseResult.data;
 
   const stmt = db.prepare('SELECT * FROM profiles WHERE email = ?');
-  const user = stmt.get(email.toLowerCase()) as any;
+  let user = stmt.get(email.toLowerCase()) as any;
 
-  if (!user || !user.password_hash) {
-    res.status(401).json({ error: 'Invalid credentials. Please verify your email and password.' });
-    return;
+  let authenticated = false;
+
+  if (user && user.password_hash) {
+    authenticated = bcrypt.compareSync(password, user.password_hash);
   }
 
-  const matches = bcrypt.compareSync(password, user.password_hash);
-  if (!matches) {
+  // If local password check didn't pass or user wasn't in local DB, attempt Supabase Auth
+  if (!authenticated && isSupabaseAvailable()) {
+    try {
+      const { data: supaData, error: supaError } = await getSupabase()!.auth.signInWithPassword({
+        email: email.toLowerCase(),
+        password,
+      });
+
+      if (!supaError && supaData?.user) {
+        authenticated = true;
+        // If user wasn't in local DB yet, auto-provision profile
+        if (!user) {
+          const newUserId = supaData.user.id || `usr-${Date.now()}`;
+          const newHash = bcrypt.hashSync(password, 10);
+          const metaName = (supaData.user.user_metadata as any)?.display_name || email.split('@')[0];
+          
+          db.prepare(`
+            INSERT INTO profiles (id, email, password_hash, display_name, role)
+            VALUES (?, ?, ?, ?, 'user')
+          `).run(newUserId, email.toLowerCase(), newHash, metaName);
+
+          db.prepare(`
+            INSERT INTO user_preferences (user_id, theme)
+            VALUES (?, 'light')
+          `).run(newUserId);
+
+          user = db.prepare('SELECT * FROM profiles WHERE email = ?').get(email.toLowerCase()) as any;
+        } else {
+          // Update password hash locally so subsequent logins are fast
+          const updatedHash = bcrypt.hashSync(password, 10);
+          db.prepare('UPDATE profiles SET password_hash = ? WHERE id = ?').run(updatedHash, user.id);
+        }
+      }
+    } catch (err: any) {
+      console.warn('Supabase Auth login attempt notice:', err.message);
+    }
+  }
+
+  if (!authenticated || !user) {
     res.status(401).json({ error: 'Invalid credentials. Please verify your email and password.' });
     return;
   }
