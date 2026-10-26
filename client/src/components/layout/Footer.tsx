@@ -1,125 +1,110 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield } from 'lucide-react';
+import { TrustLensLogo } from '../common/TrustLensLogo.js';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+    <footer className="bg-white dark:bg-[#0B1220] border-t border-[#E2E8F0] dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Brand info */}
+          {/* Brand Info */}
           <div className="space-y-3 md:col-span-1">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-teal-600 text-white flex items-center justify-center font-bold text-xs">
-                <Shield className="w-3.5 h-3.5" />
-              </div>
-              <span className="font-bold text-sm text-slate-800 dark:text-slate-100">TrustLens</span>
-            </div>
-            <p className="text-slate-500 leading-relaxed text-[11px]">
-              An explainable misinformation analysis and media literacy platform designed to examine language patterns, source citations, and verified evidence.
+            <TrustLensLogo size="md" showWordmark={true} tagline={false} />
+            <p className="text-slate-500 dark:text-slate-400 leading-relaxed text-[11px] mt-2">
+              TrustLens is an AI-powered misinformation analysis, fact-checking, and community verification platform helping citizens investigate suspicious claims and understand supporting evidence.
             </p>
-            <div className="text-[10px] text-slate-400">
-              Assisting critical human judgment — not replacing it.
+            <div className="text-[10px] text-slate-400 font-medium">
+              Verify Before You Trust.
             </div>
           </div>
 
-          {/* Verification Workspaces */}
+          {/* Quick Links */}
           <div>
-            <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider mb-3">
-              Workspaces
+            <h4 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider mb-3">
+              Quick Links
             </h4>
-            <ul className="space-y-2">
+            <ul className="space-y-2 text-xs">
               <li>
-                <Link to="/verify" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-                  Analyze Claims & Screenshots
+                <Link to="/verify" className="hover:text-[#14B8A6] transition-colors">
+                  Verify Content
                 </Link>
               </li>
               <li>
-                <Link to="/assistant" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-                  Verification AI Assistant
+                <Link to="/dashboard" className="hover:text-[#14B8A6] transition-colors">
+                  Dashboard
                 </Link>
               </li>
               <li>
-                <Link to="/community" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
+                <Link to="/community" className="hover:text-[#14B8A6] transition-colors">
                   Community Deliberation
                 </Link>
               </li>
               <li>
-                <Link to="/experts" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-                  Expert Review Panel
+                <Link to="/report-center" className="hover:text-[#14B8A6] transition-colors">
+                  Report Center
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Resources & Safety */}
+          {/* Legal & Policies */}
           <div>
-            <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider mb-3">
-              Civic Resources
+            <h4 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider mb-3">
+              Trust & Legal
             </h4>
-            <ul className="space-y-2">
+            <ul className="space-y-2 text-xs">
               <li>
-                <Link to="/report-center" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-                  Official Citizen Report Portals
+                <Link to="/settings" className="hover:text-[#14B8A6] transition-colors">
+                  Privacy Policy & Data Rights
                 </Link>
               </li>
               <li>
-                <Link to="/legal-rights" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-                  Law & Citizen Communication Rights
+                <Link to="/settings" className="hover:text-[#14B8A6] transition-colors">
+                  Terms of Service
                 </Link>
               </li>
               <li>
-                <Link to="/education" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-                  Digital Literacy Modules
+                <Link to="/report-center" className="hover:text-[#14B8A6] transition-colors">
+                  Official Statutory Channels
                 </Link>
               </li>
               <li>
                 <a
-                  href="https://factcheck.pib.gov.in"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors inline-flex items-center gap-1"
+                  href="mailto:inquiries@trustlens.org"
+                  className="hover:text-[#14B8A6] transition-colors"
                 >
-                  <span>PIB Fact Check Registry</span>
+                  Contact: inquiries@trustlens.org
                 </a>
               </li>
             </ul>
           </div>
 
-          {/* Standards & Transparency */}
+          {/* Supported Languages & Scope */}
           <div>
-            <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider mb-3">
-              Methodology & Ethics
+            <h4 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider mb-3">
+              Platform Standards
             </h4>
-            <ul className="space-y-2">
-              <li>
-                <a href="#responsible-use" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-                  Responsible AI Principles
-                </a>
+            <ul className="space-y-2 text-xs">
+              <li className="text-slate-500 dark:text-slate-400">
+                Linguistic Detection: English • తెలుగు • हिन्दी
               </li>
-              <li>
-                <a href="#faq" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-                  How Risk Indicators Work
-                </a>
+              <li className="text-slate-500 dark:text-slate-400">
+                SSRF-Guarded Web Content Retrieval
               </li>
-              <li>
-                <Link to="/settings" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-                  Privacy & Data Retention
-                </Link>
+              <li className="text-slate-500 dark:text-slate-400">
+                Deterministic Limitations & Uncertainty Ratings
               </li>
-              <li>
-                <span className="text-[10px] text-slate-400">
-                  Multilingual: English • తెలుగు • हिन्दी
-                </span>
+              <li className="text-slate-500 dark:text-slate-400">
+                DPDP & GDPR Compliant Data Control
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
-          <p>© {new Date().getFullYear()} TrustLens Platform. Open verification architecture.</p>
+        <div className="mt-8 pt-6 border-t border-[#E2E8F0] dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
+          <p>© {new Date().getFullYear()} TrustLens. All rights reserved.</p>
           <p className="text-slate-400 text-center sm:text-right">
-            Notice: Automated assessments can be incomplete or uncertain. Always check primary official records.
+            Notice: Automated assessments assist human verification and do not substitute official confirmation.
           </p>
         </div>
       </div>

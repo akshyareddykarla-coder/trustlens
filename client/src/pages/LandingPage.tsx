@@ -4,355 +4,325 @@ import {
   Shield,
   FileCheck2,
   Search,
-  Sparkles,
   Languages,
   Users,
-  GraduationCap,
+  AlertOctagon,
   ArrowRight,
   ChevronDown,
   ChevronUp,
-  AlertTriangle,
   CheckCircle2,
   HelpCircle,
   ExternalLink,
-  Upload,
+  Cpu,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { PublicHeader } from '../components/layout/PublicHeader.js';
 import { Footer } from '../components/layout/Footer.js';
-import { RiskBadge } from '../components/common/RiskBadge.js';
-import { useLanguage } from '../context/LanguageContext.js';
+import { useAuth } from '../context/AuthContext.js';
+import { TrustLensLogo } from '../components/common/TrustLensLogo.js';
 
 export const LandingPage: React.FC = () => {
-  const { t } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [faqOpenIndex, setFaqOpenIndex] = useState<number | null>(0);
-  const [quickInput, setQuickInput] = useState('');
 
   const faqs = [
     {
-      q: 'How does TrustLens analyze online claims?',
-      a: 'TrustLens uses a multi-layered verification pipeline. First, it identifies the core factual claims. Second, it calculates statistical and linguistic indicators (such as urgency, sensationalism, and lack of attribution). Third, it searches verified fact-checking registries and credible reporting for direct corroboration or debunking. Finally, it compiles an explainable report highlighting uncertainty and suggested next steps.',
+      q: 'How does TrustLens verify information?',
+      a: 'TrustLens parses submitted content to extract specific verifiable claims, evaluates observable linguistic patterns (such as urgency cues and missing attribution), queries live verified fact-checking records and credible reporting archives, and synthesizes an explainable investigation summary with cited evidence sources.',
     },
     {
-      q: 'Does TrustLens guarantee whether a claim is 100% true or false?',
-      a: 'No. TrustLens is founded on the core principle that automated AI cannot definitively prove real-world truth in every situation. Instead, it surfaces observable linguistic signals, connects you to verified primary sources, and highlights uncertainties so you can make informed decisions.',
+      q: 'Can TrustLens detect every fake news story?',
+      a: 'No automated tool can detect every piece of misinformation. TrustLens is designed to assist critical human judgment, not replace it. When primary source evidence is absent or disputed, TrustLens explicitly indicates an "Insufficient Evidence" state rather than guessing or fabricating certainty.',
     },
     {
-      q: 'What languages and media formats are supported?',
-      a: 'TrustLens natively supports English, Telugu (తెలుగు), and Hindi (हिन्दी). You can submit raw text from messaging apps, upload image screenshots (processed with on-board OCR), or submit public article URLs with SSRF-safe retrieval.',
+      q: 'What happens when there is insufficient evidence?',
+      a: 'When available credible records do not directly substantiate or refute a claim, the system marks the investigation as "Insufficient Evidence" or "Unresolved". It explains what was searched, highlights what remains unverified, and suggests steps for contacting official domain registries or accredited fact-checking networks.',
     },
     {
-      q: 'How are risk indicators calculated?',
-      a: 'Indicators are calculated through deterministic linguistic rule engines combined with evidence matching. Each indicator clearly states the observed text snippet, why it matters, and its inherent limitations. We never generate arbitrary random scores.',
+      q: 'Can I analyze screenshots?',
+      a: 'Yes. You can upload PNG, JPG, or WebP images of message forwards or social media posts. TrustLens extracts the text using Optical Character Recognition (OCR), presents the extracted text for your verification and correction, and then conducts claim analysis on the confirmed text.',
     },
     {
-      q: 'How is user data and uploaded content handled?',
-      a: 'TrustLens prioritizes user privacy. Uploaded screenshots are processed strictly for OCR text extraction. Users have complete control over data retention and can export or permanently delete their history anytime in Settings.',
+      q: 'Is my investigation history private?',
+      a: 'Yes. Your verified analyses and history are private to your authenticated account protected by Row Level Security. You choose whether to share a specific finding or keep it confidential. You can export or permanently delete your investigations at any time in Settings.',
     },
     {
-      q: 'How do I escalate suspicious or harmful content to official authorities?',
-      a: 'Visit our Citizen Report Center. We provide verified, direct contact channels for official agencies such as the National Cyber Crime Portal (1930), PIB Fact Check WhatsApp Helpline, and statutory intermediary grievance officers.',
+      q: 'Which languages are supported?',
+      a: 'TrustLens natively supports English, Telugu (తెలుగు), and Hindi (हिन्दी). The platform automatically detects the input language and provides explainable analysis and AI guidance in the selected language.',
     },
   ];
 
-  const handleHeroSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (quickInput.trim()) {
-      navigate(`/verify?q=${encodeURIComponent(quickInput.trim())}`);
+  const handleStartVerifying = () => {
+    if (user) {
+      navigate('/dashboard/verify');
     } else {
-      navigate('/verify');
+      navigate('/login');
     }
   };
 
+  const scrollToHowItWorks = () => {
+    const el = document.getElementById('how-it-works');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 selection:bg-teal-100 selection:text-teal-900">
+    <div id="top" className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#090F1A] text-[#0F172A] dark:text-slate-100 selection:bg-[#14B8A6]/20 selection:text-[#0D9488]">
       <PublicHeader />
 
-      {/* Hero Section */}
-      <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden border-b border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
-          {/* Top Pill */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800/80 text-teal-800 dark:text-teal-300 text-xs font-semibold mb-6">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Explainable Misinformation & Source Verification</span>
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50 leading-[1.15]">
-            See Beyond the Headlines.
+      {/* Main Hero Section */}
+      <section className="relative pt-16 pb-20 md:pt-28 md:pb-32 border-b border-[#E2E8F0] dark:border-slate-800/80">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          {/* Very Large Heading: TRUSTLENS */}
+          <h1 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tight text-[#0B1220] dark:text-white leading-[1.05]">
+            TRUSTLENS
           </h1>
 
-          <p className="mt-5 max-w-2xl mx-auto text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
-            Examine suspicious messages, explore available evidence, and understand the signals that may affect a claim’s credibility.
+          {/* Underneath Subheading */}
+          <p className="mt-4 text-xl sm:text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200 tracking-tight">
+            Think Critically. Verify Confidently.
           </p>
 
-          {/* Interactive Analysis Input Preview */}
-          <form
-            onSubmit={handleHeroSubmit}
-            className="mt-8 max-w-2xl mx-auto p-2 sm:p-2.5 bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-2"
-          >
-            <input
-              type="text"
-              value={quickInput}
-              onChange={(e) => setQuickInput(e.target.value)}
-              placeholder="Paste a viral forward or news headline to analyze..."
-              className="flex-1 px-4 py-3 text-sm bg-transparent border-none focus:outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400"
-            />
+          {/* Description */}
+          <p className="mt-4 max-w-2xl mx-auto text-sm sm:text-base text-[#64748B] dark:text-slate-400 leading-relaxed">
+            Analyze suspicious claims, examine supporting evidence, and understand the information behind the headlines with TrustLens.
+          </p>
+
+          {/* Hero Action Buttons */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <button
-              type="submit"
-              className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
+              onClick={handleStartVerifying}
+              className="w-full sm:w-auto px-7 py-3.5 bg-[#14B8A6] hover:bg-[#0D9488] text-white font-bold text-sm rounded-xl shadow-lg shadow-[#14B8A6]/20 transition-all flex items-center justify-center gap-2"
             >
-              <span>Analyze Claim</span>
+              <span>Start Verifying</span>
               <ArrowRight className="w-4 h-4" />
             </button>
-          </form>
 
-          {/* Quick sample chips */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
-            <span>Or try sample:</span>
             <button
-              type="button"
-              onClick={() => setQuickInput('PIB warns against fake railway vacancy letter requesting Rs 5000 deposit fee.')}
-              className="px-2.5 py-1 rounded-md bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+              onClick={scrollToHowItWorks}
+              className="w-full sm:w-auto px-6 py-3.5 bg-white dark:bg-[#0B1220] hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-sm rounded-xl border border-[#E2E8F0] dark:border-slate-800 transition-all"
             >
-              Railway Job Notice Forward
-            </button>
-            <button
-              type="button"
-              onClick={() => setQuickInput('ISRO completes autonomous landing mission of reusable launch vehicle RLV-LEX-02 in Chitradurga.')}
-              className="px-2.5 py-1 rounded-md bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
-            >
-              ISRO Mission Test
+              See How It Works
             </button>
           </div>
+        </div>
+      </section>
 
-          {/* Demonstration Preview Card */}
-          <div className="mt-12 max-w-3xl mx-auto bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 text-left shadow-lg">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-teal-500" />
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Live System Demonstration
-                </span>
+      {/* How It Works Section: 4 Steps */}
+      <section id="how-it-works" className="py-16 md:py-24 bg-white dark:bg-[#0B1220] border-b border-[#E2E8F0] dark:border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#14B8A6] mb-2">
+              Step-by-Step Workflow
+            </h2>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F172A] dark:text-slate-50">
+              How It Works
+            </p>
+            <p className="mt-2 text-xs sm:text-sm text-[#64748B] dark:text-slate-400">
+              A transparent verification process that prioritizes evidence and explainability over guesswork.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Step 01 */}
+            <div className="p-6 rounded-3xl bg-[#F8FAFC] dark:bg-[#090F1A] border border-[#E2E8F0] dark:border-slate-800/80 relative">
+              <div className="text-2xl font-black text-[#14B8A6] tracking-tight mb-3">
+                01
               </div>
-              <RiskBadge level="elevated_risk" size="sm" />
-            </div>
-
-            <div className="py-4">
-              <div className="text-xs font-medium text-slate-400">Sample Forwarded Message:</div>
-              <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800/80">
-                “SHOCKING BOMBSHELL: Ministry issuing direct railway appointments for Rs 5000 fee! Send to all WhatsApp groups before midnight deadline!”
+              <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100">
+                Submit Content
+              </h3>
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Paste a message, provide a news URL, or upload a screenshot.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
-              <div className="p-3 rounded-lg bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40">
-                <div className="font-semibold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Observed Linguistic Signals</span>
-                </div>
-                <p className="mt-1 text-slate-600 dark:text-slate-400 text-[11px]">
-                  Manufactured urgency detected ("before midnight", "send to all"). Sensational framing without named authority.
-                </p>
+            {/* Step 02 */}
+            <div className="p-6 rounded-3xl bg-[#F8FAFC] dark:bg-[#090F1A] border border-[#E2E8F0] dark:border-slate-800/80 relative">
+              <div className="text-2xl font-black text-[#14B8A6] tracking-tight mb-3">
+                02
               </div>
+              <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100">
+                Analyze Claims
+              </h3>
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                TrustLens identifies factual claims and suspicious presentation patterns.
+              </p>
+            </div>
 
-              <div className="p-3 rounded-lg bg-teal-50/60 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-900/40">
-                <div className="font-semibold text-teal-900 dark:text-teal-300 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
-                  <span>Verified Fact-Check Match</span>
-                </div>
-                <p className="mt-1 text-slate-600 dark:text-slate-400 text-[11px]">
-                  Direct match in PIB Fact Check registry: Ministry of Railways confirmed fee notice is fraudulent.
-                </p>
+            {/* Step 03 */}
+            <div className="p-6 rounded-3xl bg-[#F8FAFC] dark:bg-[#090F1A] border border-[#E2E8F0] dark:border-slate-800/80 relative">
+              <div className="text-2xl font-black text-[#14B8A6] tracking-tight mb-3">
+                03
               </div>
+              <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100">
+                Find Evidence
+              </h3>
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Search for relevant information and compare the claims with available sources.
+              </p>
+            </div>
+
+            {/* Step 04 */}
+            <div className="p-6 rounded-3xl bg-[#F8FAFC] dark:bg-[#090F1A] border border-[#E2E8F0] dark:border-slate-800/80 relative">
+              <div className="text-2xl font-black text-[#14B8A6] tracking-tight mb-3">
+                04
+              </div>
+              <h3 className="text-base font-bold text-[#0F172A] dark:text-slate-100">
+                Understand Results
+              </h3>
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Review explanations, evidence links, and areas of uncertainty.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Key Features Section */}
-      <section id="features" className="py-16 md:py-24 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800">
+      {/* Core Features: Compact Grid */}
+      <section id="features" className="py-16 md:py-24 bg-[#F8FAFC] dark:bg-[#090F1A] border-b border-[#E2E8F0] dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
-              Six Pillars of Rigorous Verification
+          <div className="text-center max-w-2xl mx-auto mb-14">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#14B8A6] mb-2">
+              Platform Capabilities
             </h2>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
-              Engineered with transparent evidence retrieval, statistical linguistic indicators, and community deliberation.
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F172A] dark:text-slate-50">
+              Core Features
+            </p>
+            <p className="mt-2 text-xs sm:text-sm text-[#64748B] dark:text-slate-400">
+              Essential verification and investigation tools engineered for accuracy and clarity.
             </p>
           </div>
 
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 hover:border-teal-500/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center mb-4">
-                <FileCheck2 className="w-5 h-5" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Feature 1 */}
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800">
+              <div className="w-10 h-10 rounded-2xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center mb-4">
+                <Cpu className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                Multimodal Claim Analysis
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100">
+                AI-Assisted Verification
               </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Submit raw message text, upload screenshot images processed with built-in OCR, or enter article URLs with SSRF protection.
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Evaluates textual framing, urgency cues, and emotional manipulation patterns using explainable heuristics without speculative conclusions.
               </p>
-              <Link to="/verify" className="inline-flex items-center gap-1 mt-4 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline">
-                Open analyzer <ArrowRight className="w-3 h-3" />
-              </Link>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 hover:border-teal-500/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center mb-4">
+            {/* Feature 2 */}
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800">
+              <div className="w-10 h-10 rounded-2xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center mb-4">
+                <ImageIcon className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100">
+                Screenshot Text Extraction
+              </h3>
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Upload image screenshots from chat or social media to extract text with client-side OCR for user review and subsequent claim analysis.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800">
+              <div className="w-10 h-10 rounded-2xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center mb-4">
                 <Search className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                Evidence & Source Exploration
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100">
+                Evidence-Based Analysis
               </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Traceable links to real fact-check databases, official gazettes, and reputable reporting. Never fabricated links or hallucinations.
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Connects claims directly to verifiable fact-check registries and official publisher reporting. Never invents citations or claims.
               </p>
-              <Link to="/history" className="inline-flex items-center gap-1 mt-4 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline">
-                Explore archive <ArrowRight className="w-3 h-3" />
-              </Link>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 hover:border-teal-500/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center mb-4">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                Explainable Risk Indicators
-              </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Clear explanations for each detected signal: urgency pressure, hyperbolic tone, caps ratios, and missing attribution, along with explicit limitations.
-              </p>
-              <a href="#how-it-works" className="inline-flex items-center gap-1 mt-4 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline">
-                View methodology <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 hover:border-teal-500/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center mb-4">
-                <Languages className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                Multilingual Support
-              </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Full interface and linguistic detection for English, Telugu (తెలుగు), and Hindi (हिन्दी), tackling regional vernacular rumor cycles.
-              </p>
-              <span className="inline-block mt-4 text-xs font-semibold text-slate-500">
-                English • తెలుగు • हिन्दी
-              </span>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 hover:border-teal-500/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center mb-4">
+            {/* Feature 4 */}
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800">
+              <div className="w-10 h-10 rounded-2xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center mb-4">
                 <Users className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                Community Verification
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100">
+                Community Fact-Checking
               </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Collaborative claim discussions, peer source citations, and helpfulness voting. Clearly distinguished from certified evidence.
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Enables collaborative discussion, community context contributions, and source sharing with clear separation between opinion and evidence.
               </p>
-              <Link to="/community" className="inline-flex items-center gap-1 mt-4 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline">
-                Join discussions <ArrowRight className="w-3 h-3" />
-              </Link>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 hover:border-teal-500/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center mb-4">
-                <GraduationCap className="w-5 h-5" />
+            {/* Feature 5 */}
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800">
+              <div className="w-10 h-10 rounded-2xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center mb-4">
+                <AlertOctagon className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                Digital Literacy Curriculum
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100">
+                Reporting Assistance
               </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Practical lessons on reverse image searches, identifying cheapfakes, evaluating sources, and interactive knowledge quizzes.
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Draft structured complaint memos for impersonation or cyber fraud and access verified statutory portals like the Cyber Crime Portal (1930).
               </p>
-              <Link to="/education" className="inline-flex items-center gap-1 mt-4 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline">
-                Start learning <ArrowRight className="w-3 h-3" />
-              </Link>
+            </div>
+
+            {/* Feature 6 */}
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800">
+              <div className="w-10 h-10 rounded-2xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center mb-4">
+                <Languages className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100">
+                Multilingual Support
+              </h3>
+              <p className="mt-2 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Automatic script detection and investigations in English, Telugu (తెలుగు), and Hindi (हिन्दी) to address regional rumor cycles.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="py-16 md:py-24 bg-slate-50 dark:bg-slate-950 border-b border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
-              How TrustLens Works in 3 Steps
+      {/* Why TrustLens? Section */}
+      <section id="about" className="py-16 md:py-24 bg-white dark:bg-[#0B1220] border-b border-[#E2E8F0] dark:border-slate-800">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#14B8A6] mb-2">
+              Our Perspective
             </h2>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
-              A transparent verification process that prioritizes evidence and explainability.
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F172A] dark:text-slate-50">
+              Why TrustLens?
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="relative p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-sm mb-4">
-                1
-              </div>
-              <h3 className="font-semibold text-base text-slate-900 dark:text-slate-100">
-                Submit Input
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 rounded-3xl bg-[#F8FAFC] dark:bg-[#090F1A] border border-[#E2E8F0] dark:border-slate-800/80">
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 mb-2">
+                Misinformation spreads quickly.
               </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Paste forwarded chat text, upload an image screenshot for OCR extraction, or enter a public article URL. Review and refine the extracted claim.
+              <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Viral claims, forward chains, and sensational headlines circulate faster than factual corrections, capitalizing on emotional triggers.
               </p>
             </div>
 
-            <div className="relative p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-sm mb-4">
-                2
-              </div>
-              <h3 className="font-semibold text-base text-slate-900 dark:text-slate-100">
-                Examine Signals & Search Evidence
+            <div className="p-6 rounded-3xl bg-[#F8FAFC] dark:bg-[#090F1A] border border-[#E2E8F0] dark:border-slate-800/80">
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 mb-2">
+                Visual appearance does not guarantee credibility.
               </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Algorithmic engines scan for emotional triggers and urgency markers while cross-referencing indexed fact-checking archives and live news sources.
+              <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Authentic-looking letterheads, fake news banners, and manipulated graphics can mislead even cautious readers without primary source verification.
               </p>
             </div>
 
-            <div className="relative p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-sm mb-4">
-                3
-              </div>
-              <h3 className="font-semibold text-base text-slate-900 dark:text-slate-100">
-                Review Qualified Explanation
+            <div className="p-6 rounded-3xl bg-[#F8FAFC] dark:bg-[#090F1A] border border-[#E2E8F0] dark:border-slate-800/80">
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 mb-2">
+                Context and supporting evidence matter.
               </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Inspect the qualified risk signals, read source citations, examine uncertainties, download reports, or chat with the AI verification assistant.
+              <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                A statement may contain factual elements while omitting crucial context or presenting misleading framing. Transparent evidence reveals the difference.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Responsible Use Section */}
-      <section id="responsible-use" className="py-16 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="p-8 rounded-3xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-900/40">
-            <div className="flex items-center gap-2.5 text-teal-800 dark:text-teal-300 font-bold text-sm mb-3">
-              <Shield className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-              <span>Responsible AI & Critical Verification Principles</span>
-            </div>
-
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
-              AI Assists Your Judgment — It Does Not Replace It
-            </h3>
-
-            <div className="mt-4 space-y-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              <p>
-                • <strong>AI assessments can be imperfect:</strong> Automated models evaluate linguistic framing and known databases, but cannot infallibly determine ground truth for uncatalogued events.
-              </p>
-              <p>
-                • <strong>Urgency does not equal falsehood:</strong> A genuine public safety emergency message may use urgent language. Stylistic framing serves as a prompt to verify, not proof of deception.
-              </p>
-              <p>
-                • <strong>Absence of evidence is not proof of falsehood:</strong> Emerging local events may simply not yet have indexed coverage in formal fact-checking databases.
-              </p>
-              <p>
-                • <strong>Check primary sources:</strong> Always verify claims with primary government portals, authorized spokespersons, or established journalistic outlets before making critical decisions.
+            <div className="p-6 rounded-3xl bg-[#F8FAFC] dark:bg-[#090F1A] border border-[#E2E8F0] dark:border-slate-800/80">
+              <h3 className="text-sm font-bold text-[#0F172A] dark:text-slate-100 mb-2">
+                Responsible sharing begins with verification.
+              </h3>
+              <p className="text-xs text-[#64748B] dark:text-slate-400 leading-relaxed">
+                Pausing to examine sources before forwarding protects your friends, family, and online community from fraud and rumors.
               </p>
             </div>
           </div>
@@ -360,14 +330,17 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-16 md:py-24 bg-slate-50 dark:bg-slate-950 border-b border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
+      <section id="faq" className="py-16 md:py-24 bg-[#F8FAFC] dark:bg-[#090F1A] border-b border-[#E2E8F0] dark:border-slate-800">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-xl mx-auto mb-12">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#14B8A6] mb-2">
               Frequently Asked Questions
             </h2>
-            <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-              Transparent answers regarding our algorithms, data privacy, and limitations.
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F172A] dark:text-slate-50">
+              Questions & Answers
+            </p>
+            <p className="mt-2 text-xs sm:text-sm text-[#64748B] dark:text-slate-400">
+              Realistic information about TrustLens capabilities and limitations.
             </p>
           </div>
 
@@ -377,17 +350,25 @@ export const LandingPage: React.FC = () => {
               return (
                 <div
                   key={idx}
-                  className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+                  className="rounded-2xl bg-white dark:bg-[#0B1220] border border-[#E2E8F0] dark:border-slate-800 overflow-hidden"
                 >
                   <button
+                    type="button"
                     onClick={() => setFaqOpenIndex(isOpen ? null : idx)}
-                    className="w-full px-5 py-4 text-left flex items-center justify-between text-sm font-semibold text-slate-800 dark:text-slate-200 hover:text-teal-600 transition-colors"
+                    className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 transition-colors"
                   >
-                    <span>{faq.q}</span>
-                    {isOpen ? <ChevronUp className="w-4 h-4 text-teal-600" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                    <span className="text-xs sm:text-sm font-bold text-[#0F172A] dark:text-slate-100">
+                      {faq.q}
+                    </span>
+                    {isOpen ? (
+                      <ChevronUp className="w-4 h-4 text-[#14B8A6] flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    )}
                   </button>
+
                   {isOpen && (
-                    <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-800/60">
+                    <div className="px-4 pb-5 sm:px-5 text-xs text-[#64748B] dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-800/80 pt-3">
                       {faq.a}
                     </div>
                   )}
@@ -398,32 +379,7 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* CTA Footer Section */}
-      <section className="py-16 bg-white dark:bg-slate-900 text-center border-b border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-            Start Verifying Information with Confidence
-          </h2>
-          <p className="mt-3 text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
-            Join citizens, researchers, and journalists examining online claims with transparent signals and verified evidence.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              to="/verify"
-              className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-colors"
-            >
-              Analyze a Claim Now
-            </Link>
-            <Link
-              to="/education"
-              className="px-6 py-3 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold text-xs rounded-xl transition-colors"
-            >
-              Explore Media Literacy Lessons
-            </Link>
-          </div>
-        </div>
-      </section>
-
+      {/* Footer */}
       <Footer />
     </div>
   );

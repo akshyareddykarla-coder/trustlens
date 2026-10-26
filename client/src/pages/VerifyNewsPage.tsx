@@ -388,7 +388,7 @@ export const VerifyNewsPage: React.FC = () => {
       {/* Verified Sample Claims (Clearly Labeled) */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6">
         <h3 className="font-semibold text-xs uppercase tracking-wider text-slate-500 mb-3">
-          Explore Demonstrative Test Cases (Pre-configured Inquiries)
+          Recent Common Inquiries & Examples
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button

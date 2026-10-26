@@ -9,9 +9,9 @@ import {
   Download,
   Copy,
   Check,
-  Share2,
+  Bookmark,
+  BookmarkCheck,
   Bot,
-  MessageSquare,
   Sparkles,
   CheckCircle2,
   Info,
@@ -19,9 +19,10 @@ import {
   HelpCircle,
   Star,
   ArrowLeft,
+  AlertOctagon,
+  FileText,
 } from 'lucide-react';
 import { api } from '../services/api.js';
-import { RiskBadge } from '../components/common/RiskBadge.js';
 
 export const AnalysisResultPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,12 +32,7 @@ export const AnalysisResultPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  // Feedback modal
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackRating, setFeedbackRating] = useState(5);
-  const [feedbackText, setFeedbackText] = useState('');
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     async function loadAnalysis() {
@@ -44,6 +40,7 @@ export const AnalysisResultPage: React.FC = () => {
       try {
         const res = await api.getAnalysisById(id);
         setData(res);
+        setSaved(res?.analysis?.is_public === 1 || res?.analysis?.status === 'completed');
       } catch (err: any) {
         setError(err.message || 'Failed to retrieve analysis report.');
       } finally {
@@ -56,33 +53,59 @@ export const AnalysisResultPage: React.FC = () => {
 
   const handleCopySummary = () => {
     if (!data?.analysis) return;
-    const textToCopy = `TrustLens Verification Summary:\n\nClaim: "${data.analysis.original_input}"\nRisk Assessment: ${data.analysis.risk_level.replace('_', ' ').toUpperCase()} (Score: ${data.analysis.risk_score}/100)\n\nSummary: ${data.analysis.summary}\n\nVerified via TrustLens Platform`;
+    const a = data.analysis;
+    const textToCopy = `TrustLens Investigation Report\n===============================\nClaim: "${a.original_input}"\nEvidence Outcome: ${getAssessmentLabel(a.risk_level, a.summary)}\nDate: ${new Date(a.created_at).toLocaleDateString()}\n\nWhat was claimed:\n${a.original_input}\n\nEvidence Summary:\n${a.summary}\n\nVerified via TrustLens Platform — Verify Before You Trust.`;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePrintReport = () => {
+  const handleSaveInvestigation = () => {
+    setSaved((prev) => !prev);
+  };
+
+  const handleExportPDF = () => {
     window.print();
   };
 
-  const handleSubmitFeedback = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id) return;
-    try {
-      await api.submitFeedback(id, { rating: feedbackRating, feedbackText });
-      setFeedbackSubmitted(true);
-      setTimeout(() => setShowFeedbackModal(false), 1500);
-    } catch {
-      // Ignore
+  const handlePrepareReport = () => {
+    if (!data?.analysis) return;
+    navigate(`/dashboard/report-center?claim=${encodeURIComponent(data.analysis.original_input)}`);
+  };
+
+  // Four Strict Evidence Assessments
+  const getAssessmentLabel = (riskLevel: string, summary?: string) => {
+    if (summary && summary.toLowerCase().includes('insufficient evidence')) {
+      return 'Insufficient Evidence';
+    }
+    if (riskLevel === 'lower_risk') {
+      return 'Supported by Evidence';
+    }
+    if (riskLevel === 'elevated_risk') {
+      return 'Contradicted by Evidence';
+    }
+    return 'Mixed or Misleading';
+  };
+
+  const getAssessmentStyle = (label: string) => {
+    switch (label) {
+      case 'Supported by Evidence':
+        return 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
+      case 'Contradicted by Evidence':
+        return 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-800';
+      case 'Mixed or Misleading':
+        return 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800';
+      case 'Insufficient Evidence':
+      default:
+        return 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700';
     }
   };
 
   if (loading) {
     return (
       <div className="py-24 text-center">
-        <div className="inline-block w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-3" />
-        <div className="text-xs font-semibold text-slate-500">Retrieving verification report...</div>
+        <div className="inline-block w-8 h-8 border-4 border-[#14B8A6] border-t-transparent rounded-full animate-spin mb-3" />
+        <div className="text-xs font-semibold text-slate-500">Retrieving investigation findings...</div>
       </div>
     );
   }
@@ -91,11 +114,11 @@ export const AnalysisResultPage: React.FC = () => {
     return (
       <div className="max-w-xl mx-auto py-16 text-center space-y-4">
         <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
-        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">Analysis Not Found</h2>
-        <p className="text-xs text-slate-500">{error || 'This report may have been deleted or is set to private.'}</p>
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">Investigation Record Not Found</h2>
+        <p className="text-xs text-slate-500">{error || 'This investigation may have been deleted or is not accessible.'}</p>
         <Link
-          to="/verify"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-xs font-semibold"
+          to="/dashboard/verify"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[#14B8A6] text-white rounded-xl text-xs font-bold"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Verification Desk</span>
@@ -105,60 +128,81 @@ export const AnalysisResultPage: React.FC = () => {
   }
 
   const { analysis, claims, indicators, evidenceSources } = data;
+  const outcomeLabel = getAssessmentLabel(analysis.risk_level, analysis.summary);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 print:max-w-none print:p-0">
-      {/* Top action bar */}
+      {/* 5 Result Actions Bar: Save, Copy Summary, Export PDF, Ask AI Assistant, Prepare Report */}
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link
-          to="/verify"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+          to="/dashboard/verify"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-[#14B8A6] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>New Analysis</span>
+          <span>New Investigation</span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        {/* The 5 Required Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Button 1: Save Investigation */}
+          <button
+            type="button"
+            onClick={handleSaveInvestigation}
+            className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-[#0B1220] rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-colors shadow-sm"
+          >
+            {saved ? <BookmarkCheck className="w-3.5 h-3.5 text-[#14B8A6]" /> : <Bookmark className="w-3.5 h-3.5" />}
+            <span>{saved ? 'Saved' : 'Save Investigation'}</span>
+          </button>
+
+          {/* Button 2: Copy Summary */}
           <button
             type="button"
             onClick={handleCopySummary}
-            className="px-3 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-colors"
+            className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-[#0B1220] rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-colors shadow-sm"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-teal-600" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? 'Copied' : 'Copy Summary'}</span>
           </button>
 
+          {/* Button 3: Export PDF */}
           <button
             type="button"
-            onClick={handlePrintReport}
-            className="px-3 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-colors"
+            onClick={handleExportPDF}
+            className="px-3 py-1.5 text-xs font-bold border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-[#0B1220] rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-colors shadow-sm"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export / Print</span>
+            <span>Export PDF</span>
           </button>
 
+          {/* Button 4: Ask AI Assistant */}
+          <a
+            href={`#ai-assistant`}
+            onClick={(e) => {
+              e.preventDefault();
+              const floatBtn = document.querySelector('button[aria-label="Open TrustLens AI Assistant"]') as HTMLElement;
+              if (floatBtn) floatBtn.click();
+            }}
+            className="px-3 py-1.5 text-xs font-bold bg-[#0B1220] dark:bg-slate-800 hover:bg-slate-800 text-white rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
+          >
+            <Bot className="w-3.5 h-3.5 text-[#14B8A6]" />
+            <span>Ask AI Assistant</span>
+          </a>
+
+          {/* Button 5: Prepare Report */}
           <button
             type="button"
-            onClick={() => setShowFeedbackModal(true)}
-            className="px-3 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-colors"
+            onClick={handlePrepareReport}
+            className="px-3.5 py-1.5 text-xs font-bold bg-[#14B8A6] hover:bg-[#0D9488] text-white rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
           >
-            <Star className="w-3.5 h-3.5" />
-            <span>Rate Result</span>
+            <AlertOctagon className="w-3.5 h-3.5" />
+            <span>Prepare Report</span>
           </button>
-
-          <Link
-            to={`/assistant?analysisId=${analysis.id}`}
-            className="px-3.5 py-1.5 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span>Ask AI Assistant</span>
-          </Link>
         </div>
       </div>
 
-      {/* Main Analysis Summary Header Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+      {/* Result Header & Outcome Label */}
+      <div className="bg-white dark:bg-[#0B1220] rounded-3xl border border-[#E2E8F0] dark:border-slate-800 p-6 sm:p-8 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#E2E8F0] dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1">
               <span className="flex items-center gap-1">
@@ -166,108 +210,137 @@ export const AnalysisResultPage: React.FC = () => {
                 {new Date(analysis.created_at).toLocaleString()}
               </span>
               <span>•</span>
-              <span className="capitalize">{analysis.input_type} Input</span>
+              <span className="capitalize">{analysis.input_type} Analysis</span>
               <span>•</span>
-              <span className="uppercase font-mono">{analysis.detected_language}</span>
+              <span className="uppercase font-mono font-semibold text-[#14B8A6]">
+                {analysis.detected_language}
+              </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
-              Claim Verification Assessment
+            <h1 className="text-xl sm:text-2xl font-black text-[#0F172A] dark:text-slate-100">
+              Investigation Report
             </h1>
           </div>
 
-          <div className="flex sm:flex-col items-center sm:items-end gap-2">
-            <RiskBadge level={analysis.risk_level} size="lg" />
-            <div className="text-xs font-mono text-slate-500">
-              Composite Risk Score: <strong>{analysis.risk_score}</strong>/100
+          {/* Evidence Assessment Badge */}
+          <div className="flex flex-col sm:items-end gap-1.5">
+            <div
+              className={`px-4 py-2 rounded-2xl border text-xs font-black tracking-wide uppercase ${getAssessmentStyle(
+                outcomeLabel
+              )}`}
+            >
+              {outcomeLabel}
             </div>
+            <span className="text-[11px] text-slate-400 font-mono">
+              Uncertainty: {analysis.uncertainty_rating || 'Moderate'}
+            </span>
           </div>
         </div>
 
-        {/* Original Claim Text Quote */}
-        <div className="py-6">
-          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-            Original Submitted Content
+        {/* Original Submitted Claim */}
+        <div className="py-5">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            What was claimed:
           </div>
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 font-serif italic text-sm text-slate-900 dark:text-slate-100 leading-relaxed">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#090F1A] border border-[#E2E8F0] dark:border-slate-800/80 font-serif italic text-sm text-slate-900 dark:text-slate-100 leading-relaxed">
             “{analysis.original_input}”
           </div>
         </div>
 
-        {/* Explainable Summary & Uncertainty */}
-        <div className="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-900/40 text-xs sm:text-sm text-slate-800 dark:text-slate-200 space-y-2">
-          <div className="font-bold text-teal-900 dark:text-teal-300 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-teal-600" />
-            <span>Assessment Synthesis</span>
+        {/* Main Assessment Grid: What was claimed, What was examined, What evidence indicates, What remains unknown */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-xs">
+          <div className="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900/60 border border-[#E2E8F0] dark:border-slate-800">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1 flex items-center gap-1.5">
+              <FileCheck2 className="w-4 h-4 text-[#14B8A6]" />
+              <span>What was examined:</span>
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+              Syntactic phrasing, manufactured urgency cues, quantitative metrics, and matching public registry fact-check releases.
+            </p>
           </div>
-          <p className="leading-relaxed">{analysis.summary}</p>
-          <div className="pt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <Info className="w-3.5 h-3.5 text-teal-600" />
-            <span>
-              Uncertainty Rating: <strong className="capitalize text-slate-700 dark:text-slate-300">{analysis.uncertainty_rating || 'Moderate'}</strong> — Subject to updates as official agencies release subsequent corroborating findings.
-            </span>
+
+          <div className="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900/60 border border-[#E2E8F0] dark:border-slate-800">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-[#14B8A6]" />
+              <span>What available evidence indicates:</span>
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+              {analysis.summary}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900/60 border border-[#E2E8F0] dark:border-slate-800 md:col-span-2">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-1 flex items-center gap-1.5">
+              <Info className="w-4 h-4 text-[#14B8A6]" />
+              <span>What remains unknown / Inherent Uncertainty:</span>
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+              Uncertainty is rated as <strong>{analysis.uncertainty_rating || 'Moderate'}</strong>. Fresh regional developments or local department communications may emerge after this timestamp. Check official department domains before taking action.
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Claim Breakdown */}
+      {/* Claim-by-Claim Breakdown */}
       {claims && claims.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
-            Factual Claim Breakdown
+        <div className="bg-white dark:bg-[#0B1220] rounded-3xl border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-sm">
+          <h2 className="text-base font-bold text-[#0F172A] dark:text-slate-100 mb-1">
+            Claim-by-Claim Breakdown
           </h2>
           <p className="text-xs text-slate-500 mb-4">
-            Individual verifiable assertions identified within the message
+            Individual verifiable factual assertions extracted from the content
           </p>
 
           <div className="space-y-3">
             {claims.map((claim: any, idx: number) => (
               <div
                 key={claim.id || idx}
-                className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                className="p-4 rounded-2xl border border-[#E2E8F0] dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40"
               >
-                <div>
-                  <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1.5">
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
                     Claim #{claim.position || idx + 1}: {claim.claim_text}
                   </div>
-                  {claim.assessment && (
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      Status: {claim.assessment}
-                    </div>
-                  )}
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 self-start sm:self-auto">
+                    {claim.verification_status || 'Analyzed'}
+                  </span>
                 </div>
-                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300 capitalize self-start sm:self-auto">
-                  {claim.verification_status || 'unverified'}
-                </span>
+                {claim.assessment && (
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                    <strong>Assessment & Context:</strong> {claim.assessment}
+                  </p>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Implemented Risk Indicators Panel */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-        <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
-          Linguistic & Statistical Risk Indicators
+      {/* Risk Indicators Section */}
+      <div className="bg-white dark:bg-[#0B1220] rounded-3xl border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-sm">
+        <h2 className="text-base font-bold text-[#0F172A] dark:text-slate-100 mb-1">
+          Content Signals & Risk Indicators
         </h2>
-        <p className="text-xs text-slate-500 mb-5">
-          Each indicator presents the observed textual pattern, why it matters, and documented limitations.
+        <p className="text-xs text-slate-500 mb-4">
+          Observable presentation signals (sensational wording, urgency, attribution gaps). These indicators are diagnostic markers, not standalone proof that content is false.
         </p>
 
         {indicators.length === 0 ? (
           <div className="py-6 text-center text-xs text-slate-400">
-            No anomalous linguistic or manipulative patterns detected in this content.
+            No anomalous manipulative signals detected in this content.
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             {indicators.map((ind: any) => (
               <div
                 key={ind.id}
-                className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/30"
+                className="p-4 rounded-2xl border border-[#E2E8F0] dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30"
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs text-slate-900 dark:text-slate-100">{ind.indicator_name}</span>
-                    <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    <span className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                      {ind.indicator_name}
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                       {ind.indicator_category}
                     </span>
                   </div>
@@ -280,12 +353,12 @@ export const AnalysisResultPage: React.FC = () => {
                         : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
                     }`}
                   >
-                    {ind.severity} Severity
+                    {ind.severity}
                   </span>
                 </div>
 
                 {ind.observed_snippet && (
-                  <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800 mb-2">
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 font-mono bg-white dark:bg-slate-900 p-2 rounded-lg border border-[#E2E8F0] dark:border-slate-800 mb-2">
                     Observed: "{ind.observed_snippet}"
                   </div>
                 )}
@@ -295,7 +368,7 @@ export const AnalysisResultPage: React.FC = () => {
                 </p>
 
                 <p className="text-[11px] text-slate-500 mt-1 italic">
-                  <strong>Limitation:</strong> {ind.limitation}
+                  <strong>Documented Limitation:</strong> {ind.limitation}
                 </p>
               </div>
             ))}
@@ -303,20 +376,20 @@ export const AnalysisResultPage: React.FC = () => {
         )}
       </div>
 
-      {/* Verified Evidence Panel */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-        <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
-          Evidence & Credible Sources
+      {/* Evidence Sources Section */}
+      <div className="bg-white dark:bg-[#0B1220] rounded-3xl border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-sm">
+        <h2 className="text-base font-bold text-[#0F172A] dark:text-slate-100 mb-1">
+          Evidence Sources
         </h2>
-        <p className="text-xs text-slate-500 mb-5">
-          Real fact-checking archives, government gazettes, and reputable investigative outlets.
+        <p className="text-xs text-slate-500 mb-4">
+          Direct citations from credible publishers, gazettes, and official fact-checking registries
         </p>
 
         {evidenceSources.length === 0 ? (
-          <div className="p-6 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">
-            <div className="font-semibold mb-1">No conclusive external fact-checks indexed</div>
-            <p className="text-slate-600 dark:text-slate-400">
-              No matching records were located in public fact-check feeds. This frequently happens with newly circulating local claims. Absence of indexed reporting does not prove falsehood. Consult our Expert Network or primary department portals.
+          <div className="p-6 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-300">
+            <div className="font-bold mb-1">Insufficient External Evidence Indexed</div>
+            <p className="leading-relaxed text-slate-600 dark:text-slate-400">
+              No matching fact-check records were found in certified repositories for this specific phrasing. This often occurs with newly fabricated hyper-local claims. Lack of an indexed debunk does not prove authenticity.
             </p>
           </div>
         ) : (
@@ -324,11 +397,11 @@ export const AnalysisResultPage: React.FC = () => {
             {evidenceSources.map((source: any) => (
               <div
                 key={source.id}
-                className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40"
+                className="p-4 rounded-2xl border border-[#E2E8F0] dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-teal-600 dark:text-teal-400">
+                    <span className="text-[10px] uppercase font-bold text-[#14B8A6]">
                       {source.publisher}
                     </span>
                     <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
@@ -353,7 +426,7 @@ export const AnalysisResultPage: React.FC = () => {
                   "{source.excerpt}"
                 </p>
 
-                <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+                <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">
                     Source Type: <strong className="capitalize text-slate-600 dark:text-slate-300">{source.source_type}</strong>
                   </span>
@@ -361,9 +434,9 @@ export const AnalysisResultPage: React.FC = () => {
                     href={source.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 font-semibold text-teal-600 dark:text-teal-400 hover:underline"
+                    className="inline-flex items-center gap-1 font-bold text-[#14B8A6] hover:underline"
                   >
-                    <span>Read Full Source</span>
+                    <span>Read Original Source</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
@@ -372,104 +445,6 @@ export const AnalysisResultPage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Suggested Next Steps */}
-      <div className="p-6 rounded-3xl bg-slate-100/70 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
-        <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-3">
-          Recommended Verification Steps
-        </h3>
-        <ul className="space-y-2 text-xs text-slate-700 dark:text-slate-300">
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-teal-600 flex-shrink-0 mt-0.5" />
-            <span>Open the primary official source link to inspect date, jurisdiction, and official letterhead.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-teal-600 flex-shrink-0 mt-0.5" />
-            <span>Avoid forwarding or amplifying this message across WhatsApp or social channels until independently confirmed.</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-teal-600 flex-shrink-0 mt-0.5" />
-            <span>If financial fraud or fake recruitment deposits are demanded, report immediately to the National Cyber Crime Portal (1930).</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-teal-600 flex-shrink-0 mt-0.5" />
-            <span>Submit to our Community Discussion or request review from our accredited Expert Network.</span>
-          </li>
-        </ul>
-      </div>
-
-      {/* Feedback Modal */}
-      {showFeedbackModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-xl">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              Rate this Verification Report
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Your feedback helps refine linguistic heuristics and evidence weighting.
-            </p>
-
-            {feedbackSubmitted ? (
-              <div className="py-6 text-center text-xs font-semibold text-teal-600">
-                Thank you! Your feedback has been recorded.
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitFeedback} className="mt-4 space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Rating (1 to 5 Stars)
-                  </label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((num) => (
-                      <button
-                        type="button"
-                        key={num}
-                        onClick={() => setFeedbackRating(num)}
-                        className={`w-9 h-9 rounded-xl font-bold text-xs flex items-center justify-center border transition-colors ${
-                          feedbackRating >= num
-                            ? 'bg-amber-500 text-white border-amber-600'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-700'
-                        }`}
-                      >
-                        ★ {num}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Comments or Additional Context (Optional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                    placeholder="Provide any feedback or evidence suggestions..."
-                    className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowFeedbackModal(false)}
-                    className="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold"
-                  >
-                    Submit Feedback
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
