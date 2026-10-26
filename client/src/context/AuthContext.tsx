@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase, isSupabaseConfigured } from '../services/supabase.js';
 import { api, setAuthToken, removeAuthToken, getAuthToken } from '../services/api.js';
 
 export interface User {
@@ -11,12 +12,24 @@ export interface User {
   avatarUrl?: string;
 }
 
+export interface RegisterResult {
+  requiresEmailConfirmation: boolean;
+  user: any;
+  message?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  register: (data: any) => Promise<void>;
-  logout: () => void;
+  register: (data: {
+    displayName: string;
+    email: string;
+    password: string;
+    preferredLanguage?: string;
+    intendedUse?: string;
+  }) => Promise<RegisterResult>;
+  logout: () => Promise<void>;
   quickDemoLogin: (role: 'analyst' | 'admin' | 'expert') => Promise<void>;
   updateUser: (updated: Partial<User>) => void;
 }
@@ -25,8 +38,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   login: async () => {},
-  register: async () => {},
-  logout: () => {},
+  register: async () => ({ requiresEmailConfirmation: false, user: null }),
+  logout: async () => {},
   quickDemoLogin: async () => {},
   updateUser: () => {},
 });
@@ -36,51 +49,305 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function checkCurrentSession() {
-      const token = getAuthToken();
-      if (!token) {
-        // Fallback: check if we have a dev analyst session saved
-        const devId = localStorage.getItem('trustlens_dev_user_id');
-        if (devId) {
-          try {
-            const data = await api.getMe();
-            setUser(data.user);
-          } catch {
-            localStorage.removeItem('trustlens_dev_user_id');
+    let mounted = true;
+
+    async function initAuth() {
+      // 1. First check Supabase session if configured
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.warn('Supabase getSession notice:', sessionError.message);
           }
+
+          if (session?.user && mounted) {
+            const supaUser = session.user;
+            const metadata = supaUser.user_metadata || {};
+
+            let profileRecord: any = null;
+            try {
+              const { data } = await supabase.from('profiles').select('*').eq('id', supaUser.id).maybeSingle();
+              profileRecord = data;
+            } catch (e) {
+              // RLS or network fallback
+            }
+
+            const resolvedUser: User = {
+              id: supaUser.id,
+              email: supaUser.email || '',
+              displayName: profileRecord?.display_name || metadata.display_name || supaUser.email?.split('@')[0] || 'User',
+              role: profileRecord?.role || metadata.role || 'user',
+              preferredLanguage: profileRecord?.preferred_language || metadata.preferred_language || 'en',
+              intendedUse: profileRecord?.intended_use || metadata.intended_use || 'personal_verification',
+              avatarUrl: profileRecord?.avatar_url || metadata.avatar_url,
+            };
+
+            setUser(resolvedUser);
+            setAuthToken(session.access_token);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.warn('Supabase session initialization error:', err);
         }
-        setLoading(false);
-        return;
       }
 
-      try {
-        const data = await api.getMe();
-        setUser(data.user);
-      } catch (err) {
-        console.warn('Session verification failed:', err);
-        removeAuthToken();
-        setUser(null);
-      } finally {
+      // 2. Check local JWT token fallback
+      const token = getAuthToken();
+      if (token) {
+        try {
+          const data = await api.getMe();
+          if (data?.user && mounted) {
+            setUser(data.user);
+            setLoading(false);
+            return;
+          }
+        } catch {
+          removeAuthToken();
+        }
+      }
+
+      // 3. Fallback: check dev user session
+      const devId = localStorage.getItem('trustlens_dev_user_id');
+      if (devId && mounted) {
+        try {
+          const data = await api.getMe();
+          if (data?.user) {
+            setUser(data.user);
+          }
+        } catch {
+          localStorage.removeItem('trustlens_dev_user_id');
+        }
+      }
+
+      if (mounted) {
         setLoading(false);
       }
     }
 
-    checkCurrentSession();
+    initAuth();
+
+    // Listen to Supabase auth state changes
+    let authSubscription: any = null;
+    const supa = supabase;
+    if (isSupabaseConfigured() && supa) {
+      const { data: { subscription } } = supa.auth.onAuthStateChange(async (event, session) => {
+        if (!mounted) return;
+        if (session?.user) {
+          const supaUser = session.user;
+          const metadata = supaUser.user_metadata || {};
+          let profileRecord: any = null;
+          try {
+            const { data } = await supa.from('profiles').select('*').eq('id', supaUser.id).maybeSingle();
+            profileRecord = data;
+          } catch {}
+
+          setUser({
+            id: supaUser.id,
+            email: supaUser.email || '',
+            displayName: profileRecord?.display_name || metadata.display_name || supaUser.email?.split('@')[0] || 'User',
+            role: profileRecord?.role || metadata.role || 'user',
+            preferredLanguage: profileRecord?.preferred_language || metadata.preferred_language || 'en',
+            intendedUse: profileRecord?.intended_use || metadata.intended_use || 'personal_verification',
+            avatarUrl: profileRecord?.avatar_url || metadata.avatar_url,
+          });
+          setAuthToken(session.access_token);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          removeAuthToken();
+        }
+      });
+      authSubscription = subscription;
+    }
+
+    return () => {
+      mounted = false;
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
+    };
   }, []);
 
-  const login = async (email: string, pass: string) => {
-    const data = await api.login({ email, password: pass });
+  const login = async (email: string, pass: string): Promise<void> => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (isSupabaseConfigured() && supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: pass,
+      });
+
+      if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          throw new Error('Please confirm your email address before signing in. Check your inbox for the verification link.');
+        } else if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Invalid email or password. Please verify your credentials.');
+        } else {
+          throw new Error(error.message);
+        }
+      }
+
+      if (data.session && data.user) {
+        const supaUser = data.user;
+        const metadata = supaUser.user_metadata || {};
+
+        let profileRecord: any = null;
+        try {
+          const { data: prof } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+          profileRecord = prof;
+        } catch {}
+
+        const appUser: User = {
+          id: supaUser.id,
+          email: supaUser.email || cleanEmail,
+          displayName: profileRecord?.display_name || metadata.display_name || cleanEmail.split('@')[0],
+          role: profileRecord?.role || metadata.role || 'user',
+          preferredLanguage: profileRecord?.preferred_language || metadata.preferred_language || 'en',
+          intendedUse: profileRecord?.intended_use || metadata.intended_use || 'personal_verification',
+          avatarUrl: profileRecord?.avatar_url || metadata.avatar_url,
+        };
+
+        setUser(appUser);
+        setAuthToken(data.session.access_token);
+
+        // Sync backend session
+        try {
+          await api.login({ email: cleanEmail, password: pass });
+        } catch (e) {
+          // Ignored if backend already synced
+        }
+        return;
+      }
+    }
+
+    // Fallback to backend API
+    const data = await api.login({ email: cleanEmail, password: pass });
     setAuthToken(data.token);
     setUser(data.user);
   };
 
-  const register = async (payload: any) => {
-    const data = await api.register(payload);
-    setAuthToken(data.token);
-    setUser(data.user);
+  const register = async (payload: {
+    displayName: string;
+    email: string;
+    password: string;
+    preferredLanguage?: string;
+    intendedUse?: string;
+  }): Promise<RegisterResult> => {
+    const cleanEmail = payload.email.trim().toLowerCase();
+    const cleanDisplayName = payload.displayName.trim();
+    const lang = payload.preferredLanguage || 'en';
+    const use = payload.intendedUse || 'personal_verification';
+
+    if (!cleanEmail || !payload.password) {
+      throw new Error('Please enter both email and password.');
+    }
+
+    // 1. Direct Supabase Authentication integration (Tasks 5 & 6)
+    if (isSupabaseConfigured() && supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: payload.password,
+        options: {
+          data: {
+            display_name: cleanDisplayName,
+            preferred_language: lang,
+            intended_use: use,
+          },
+        },
+      });
+
+      if (error) {
+        if (error.message.includes('already registered')) {
+          throw new Error('An account with this email already exists. Please sign in instead.');
+        } else if (error.message.includes('Password should be')) {
+          throw new Error('Password must be at least 6 characters long.');
+        } else {
+          throw new Error(error.message);
+        }
+      }
+
+      const supaUser = data.user;
+      const session = data.session;
+
+      // Check if email confirmation is required (Task 7)
+      const requiresEmailConfirmation = !session;
+
+      if (session && supaUser) {
+        // Active session established: Save profile info without duplicates (Task 9)
+        try {
+          await supabase.from('profiles').upsert({
+            id: supaUser.id,
+            email: cleanEmail,
+            display_name: cleanDisplayName,
+            preferred_language: lang,
+            intended_use: use,
+            role: 'user',
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        } catch (profErr: any) {
+          console.warn('Supabase profiles upsert notice:', profErr.message);
+        }
+
+        const appUser: User = {
+          id: supaUser.id,
+          email: cleanEmail,
+          displayName: cleanDisplayName,
+          role: 'user',
+          preferredLanguage: lang,
+          intendedUse: use,
+        };
+
+        setUser(appUser);
+        setAuthToken(session.access_token);
+      }
+
+      // Also sync with backend Express database
+      try {
+        await api.register({
+          displayName: cleanDisplayName,
+          email: cleanEmail,
+          password: payload.password,
+          preferredLanguage: lang,
+          intendedUse: use,
+        });
+      } catch (backendSyncErr: any) {
+        console.log('Backend sync status:', backendSyncErr.message);
+      }
+
+      return {
+        requiresEmailConfirmation,
+        user: supaUser,
+        message: requiresEmailConfirmation
+          ? `Verification email sent! Please check your inbox at ${cleanEmail} to confirm your account.`
+          : 'Account created successfully!',
+      };
+    }
+
+    // Fallback to backend API
+    const backendData = await api.register({
+      displayName: cleanDisplayName,
+      email: cleanEmail,
+      password: payload.password,
+      preferredLanguage: lang,
+      intendedUse: use,
+    });
+    setAuthToken(backendData.token);
+    setUser(backendData.user);
+    return {
+      requiresEmailConfirmation: false,
+      user: backendData.user,
+      message: 'Account created successfully!',
+    };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err: any) {
+        console.warn('Supabase logout notice:', err.message);
+      }
+    }
     removeAuthToken();
     localStorage.removeItem('trustlens_dev_user_id');
     setUser(null);

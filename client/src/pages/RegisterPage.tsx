@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, AlertCircle, User, Mail, Lock, Globe, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, AlertCircle, CheckCircle2, User, Mail, Lock, Globe, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.js';
 import { TrustLensLogo } from '../components/common/TrustLensLogo.js';
 
@@ -15,22 +15,32 @@ export const RegisterPage: React.FC = () => {
   const [preferredLanguage, setPreferredLanguage] = useState('en');
   const [intendedUse, setIntendedUse] = useState('personal_verification');
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setLoading(true);
 
     try {
-      await register({
+      const result = await register({
         displayName,
         email,
         password,
         preferredLanguage,
         intendedUse,
       });
-      navigate('/dashboard');
+
+      if (result.requiresEmailConfirmation) {
+        setSuccessMessage(
+          result.message ||
+          `Account registered! A verification email has been sent to ${email}. Please check your inbox and verify your address before signing in.`
+        );
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please review your details.');
     } finally {
@@ -54,6 +64,24 @@ export const RegisterPage: React.FC = () => {
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="bg-white dark:bg-[#0B1220] py-8 px-6 shadow-xl shadow-slate-200/40 dark:shadow-none border border-[#E2E8F0] dark:border-slate-800 rounded-3xl sm:px-10">
+          {successMessage && (
+            <div className="mb-4 p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900 text-teal-800 dark:text-teal-200 text-xs flex flex-col gap-2">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-teal-600 dark:text-teal-400 mt-0.5" />
+                <div>
+                  <p className="font-bold text-xs mb-0.5">Verification Email Sent</p>
+                  <p className="leading-relaxed">{successMessage}</p>
+                </div>
+              </div>
+              <Link
+                to="/login"
+                className="mt-1 inline-flex items-center justify-center py-2 px-3 bg-[#14B8A6] hover:bg-[#0D9488] text-white font-bold rounded-xl text-xs transition-colors"
+              >
+                Proceed to Sign In
+              </Link>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
