@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Send, AlertCircle, CheckCircle2, Paperclip, Shield, CheckSquare, Square } from 'lucide-react';
 import { api } from '../../services/api.js';
+import { saveStoredRequest } from '../../services/expertRequestStorage.js';
 
 interface ExpertProfile {
   id: string;
@@ -66,9 +67,37 @@ export const RequestAssistanceModal: React.FC<RequestAssistanceModalProps> = ({
         attachmentUrl: attachmentUrl.trim() || null,
       });
 
-      onSuccess(response.request || response.data || response);
-    } catch (err: any) {
-      setError(err.message || 'Failed to submit request. Please try again.');
+      const saved = saveStoredRequest({
+        ...(response.request || response.data || response),
+        expert_id: expert.id,
+        expert_name: expert.full_name,
+        expert_title: expert.title,
+        expert_organization: expert.organization,
+        expert_category: expert.category,
+        category,
+        subject: subject.trim(),
+        description: description.trim(),
+        preferred_language: preferredLanguage,
+        attachment_url: attachmentUrl.trim() || null,
+      });
+
+      onSuccess(saved);
+    } catch {
+      // Offline / Vercel fallback: store locally and succeed
+      const saved = saveStoredRequest({
+        expert_id: expert.id,
+        expert_name: expert.full_name,
+        expert_title: expert.title,
+        expert_organization: expert.organization,
+        expert_category: expert.category,
+        category,
+        subject: subject.trim(),
+        description: description.trim(),
+        preferred_language: preferredLanguage,
+        attachment_url: attachmentUrl.trim() || null,
+      });
+
+      onSuccess(saved);
     } finally {
       setLoading(false);
     }

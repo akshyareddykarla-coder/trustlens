@@ -12,10 +12,11 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { useAuth } from '../context/AuthContext.js';
+import { DEFAULT_EXPERTS } from '../data/defaultExperts.js';
 
 export const ExpertNetworkPage: React.FC = () => {
   const { user } = useAuth();
-  const [experts, setExperts] = useState<any[]>([]);
+  const [experts, setExperts] = useState<any[]>(() => DEFAULT_EXPERTS);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,14 +31,18 @@ export const ExpertNetworkPage: React.FC = () => {
     setLoading(true);
     try {
       const expRes = await api.getExperts();
-      setExperts(expRes.experts || []);
+      if (expRes?.experts && expRes.experts.length > 0) {
+        setExperts(expRes.experts);
+      } else {
+        setExperts(DEFAULT_EXPERTS);
+      }
 
       if (user) {
         const reqRes = await api.getExpertReviews();
-        setRequests(reqRes.reviewRequests || []);
+        setRequests(reqRes?.reviewRequests || []);
       }
     } catch {
-      // Ignore
+      setExperts(DEFAULT_EXPERTS);
     } finally {
       setLoading(false);
     }

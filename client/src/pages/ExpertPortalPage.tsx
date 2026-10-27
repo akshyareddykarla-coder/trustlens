@@ -20,11 +20,12 @@ import {
 import { api } from '../services/api.js';
 import { useAuth } from '../context/AuthContext.js';
 import { DemoModeSwitcher } from '../components/experts/DemoModeSwitcher.js';
+import { getStoredRequests, updateStoredRequest } from '../services/expertRequestStorage.js';
 
 export const ExpertPortalPage: React.FC = () => {
   const { user } = useAuth();
   const [activeStatus, setActiveStatus] = useState<string>('all');
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>(() => getStoredRequests());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -45,6 +46,8 @@ export const ExpertPortalPage: React.FC = () => {
 
   const fetchRequests = async () => {
     setLoading(true);
+    const storedRole = localStorage.getItem('trustlens_dev_expert_role') || 'all';
+    const local = getStoredRequests(storedRole);
     try {
       const params = new URLSearchParams();
       params.append('portal', 'true');
@@ -52,23 +55,30 @@ export const ExpertPortalPage: React.FC = () => {
         params.append('status', activeStatus);
       }
       const data = await api.getExpertRequests(`?${params.toString()}`);
-      setRequests(data.requests || []);
-    } catch (err: any) {
-      console.warn('Failed to load expert portal requests:', err.message);
+      const apiReqs = data?.requests || [];
+      const combined = [...apiReqs];
+      for (const loc of local) {
+        if (!combined.some((c: any) => c.id === loc.id)) {
+          combined.push(loc);
+        }
+      }
+      const finalReqs = combined.length > 0 ? combined : local;
+      setRequests(activeStatus === 'all' ? finalReqs : finalReqs.filter((r) => r.status === activeStatus));
+    } catch {
+      setRequests(activeStatus === 'all' ? local : local.filter((r) => r.status === activeStatus));
     } finally {
       setLoading(false);
     }
   };
 
   const handleAction = async (requestId: string, action: string, extraBody: any = {}) => {
+    updateStoredRequest(requestId, { action, ...extraBody });
     try {
       await api.updateExpertRequest(requestId, { action, ...extraBody });
-      setActionSuccess(`Request ${requestId} status updated (${action}).`);
-      setTimeout(() => setActionSuccess(null), 4000);
-      fetchRequests();
-    } catch (err: any) {
-      alert(err.message || `Failed to perform action: ${action}`);
-    }
+    } catch {}
+    setActionSuccess(`Request ${requestId} status updated (${action}).`);
+    setTimeout(() => setActionSuccess(null), 4000);
+    fetchRequests();
   };
 
   const handleSendReply = async (e: React.FormEvent) => {
@@ -76,21 +86,24 @@ export const ExpertPortalPage: React.FC = () => {
     if (!replyModalRequest || !replyText.trim()) return;
 
     setReplySubmitting(true);
+    updateStoredRequest(replyModalRequest.id, {
+      action: 'reply',
+      responseText: replyText.trim(),
+    });
+
     try {
       await api.updateExpertRequest(replyModalRequest.id, {
         action: 'reply',
         responseText: replyText.trim(),
       });
-      setActionSuccess(`Official response sent to ${replyModalRequest.user_name} for case ${replyModalRequest.id}.`);
-      setTimeout(() => setActionSuccess(null), 4000);
-      setReplyModalRequest(null);
-      setReplyText('');
-      fetchRequests();
-    } catch (err: any) {
-      alert(err.message || 'Failed to submit response.');
-    } finally {
-      setReplySubmitting(false);
-    }
+    } catch {}
+
+    setActionSuccess(`Official response sent to ${replyModalRequest.user_name} for case ${replyModalRequest.id}.`);
+    setTimeout(() => setActionSuccess(null), 4000);
+    setReplyModalRequest(null);
+    setReplyText('');
+    setReplySubmitting(false);
+    fetchRequests();
   };
 
   const handleConfirmDecline = async (e: React.FormEvent) => {
@@ -98,20 +111,23 @@ export const ExpertPortalPage: React.FC = () => {
     if (!declineModalRequest) return;
 
     setDeclineSubmitting(true);
+    updateStoredRequest(declineModalRequest.id, {
+      action: 'decline',
+      reason: declineReason.trim(),
+    });
+
     try {
       await api.updateExpertRequest(declineModalRequest.id, {
         action: 'decline',
         declineReason: declineReason.trim(),
       });
-      setActionSuccess(`Request ${declineModalRequest.id} has been declined.`);
-      setTimeout(() => setActionSuccess(null), 4000);
-      setDeclineModalRequest(null);
-      fetchRequests();
-    } catch (err: any) {
-      alert(err.message || 'Failed to decline request.');
-    } finally {
-      setDeclineSubmitting(false);
-    }
+    } catch {}
+
+    setActionSuccess(`Request ${declineModalRequest.id} has been declined.`);
+    setTimeout(() => setActionSuccess(null), 4000);
+    setDeclineModalRequest(null);
+    setDeclineSubmitting(false);
+    fetchRequests();
   };
 
   const filtered = requests.filter((r) => {

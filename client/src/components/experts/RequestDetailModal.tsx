@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Calendar, MessageSquare, Clock, CheckCircle2, AlertTriangle, ShieldCheck, ExternalLink, Paperclip } from 'lucide-react';
 import { api } from '../../services/api.js';
+import { getStoredRequests } from '../../services/expertRequestStorage.js';
 
 interface RequestDetailModalProps {
   requestId: string;
@@ -27,7 +28,12 @@ export const RequestDetailModal: React.FC<RequestDetailModalProps> = ({
       const res = await api.getExpertRequestById(requestId);
       setData(res);
     } catch (err: any) {
-      setError(err.message || 'Failed to load request details.');
+      const local = getStoredRequests().find((r) => r.id === requestId);
+      if (local) {
+        setData({ request: local, messages: local.messages || [] });
+      } else {
+        setError(err.message || 'Failed to load request details.');
+      }
     } finally {
       setLoading(false);
     }

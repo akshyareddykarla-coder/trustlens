@@ -51,11 +51,34 @@ export const DemoModeSwitcher: React.FC<DemoModeSwitcherProps> = ({ onPersonaCha
     }
   };
 
-  // If in pure production and not localhost, disable switching
-  if (!isDev) {
+  const [demoActive, setDemoActive] = useState<boolean>(() => {
+    const stored = localStorage.getItem('trustlens_demo_mode_active');
+    return stored !== null ? stored === 'true' : true;
+  });
+
+  const toggleDemoMode = (enabled: boolean) => {
+    setDemoActive(enabled);
+    localStorage.setItem('trustlens_demo_mode_active', String(enabled));
+  };
+
+  // If demo mode is switched off, show clean transparency directory badge with option to enable
+  if (!demoActive) {
     return (
-      <div className="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-[11px] text-slate-500">
-        <span className="font-bold text-slate-700 dark:text-slate-300">Public Verification Directory:</span> Public references are documented solely for transparency. Requests reach accredited enrolled experts.
+      <div className={`p-4 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs ${className}`}>
+        <div className="space-y-0.5">
+          <span className="font-bold text-slate-800 dark:text-slate-200 block">
+            Public Verification & Professional Directory
+          </span>
+          <p className="text-[11px] text-slate-500">
+            Public references are documented solely for transparency. Requests reach accredited enrolled experts.
+          </p>
+        </div>
+        <button
+          onClick={() => toggleDemoMode(true)}
+          className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm transition-colors flex-shrink-0"
+        >
+          Enable Demo Simulator
+        </button>
       </div>
     );
   }

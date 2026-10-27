@@ -31,13 +31,35 @@ import { useAuth } from '../context/AuthContext.js';
 import { DemoModeSwitcher } from '../components/experts/DemoModeSwitcher.js';
 import { RequestAssistanceModal } from '../components/experts/RequestAssistanceModal.js';
 import { RequestDetailModal } from '../components/experts/RequestDetailModal.js';
+import { DEFAULT_EXPERTS, DEFAULT_OFFICIAL_RESOURCES, ExpertProfile } from '../data/defaultExperts.js';
+import { getStoredRequests } from '../services/expertRequestStorage.js';
 
 export const ReportCenterPage: React.FC = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // 3 Mandated Tabs
-  const [activeTab, setActiveTab] = useState<'prepare' | 'official' | 'experts'>('prepare');
+  // 3 Mandated Tabs - initialized from searchParams or localStorage for refresh persistence
+  const [activeTab, setActiveTab] = useState<'prepare' | 'official' | 'experts'>(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'experts' || tabParam === 'official' || tabParam === 'prepare') {
+      return tabParam;
+    }
+    const stored = localStorage.getItem('trustlens_report_tab');
+    if (stored === 'experts' || stored === 'official' || stored === 'prepare') {
+      return stored;
+    }
+    return 'prepare';
+  });
+
+  const handleTabChange = (tab: 'prepare' | 'official' | 'experts') => {
+    setActiveTab(tab);
+    localStorage.setItem('trustlens_report_tab', tab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    });
+  };
 
   // Pre-fill claim from searchParams if navigated from Analysis page
   const initialClaim = searchParams.get('claim') || '';
@@ -53,21 +75,21 @@ export const ReportCenterPage: React.FC = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
 
   // Tab 2: Official Resources State
-  const [resources, setResources] = useState<any[]>([]);
+  const [resources, setResources] = useState<any[]>(() => DEFAULT_OFFICIAL_RESOURCES);
   const [resLoading, setResLoading] = useState(false);
   const [resCategory, setResCategory] = useState('all');
   const [resSearch, setResSearch] = useState('');
 
-  // Tab 3: Expert Connect State
+  // Tab 3: Expert Connect State - initialized with DEFAULT_EXPERTS for immediate rendering
   const [expertSubTab, setExpertSubTab] = useState<'directory' | 'my-requests'>('directory');
   const [expertCategory, setExpertCategory] = useState<string>('all');
-  const [experts, setExperts] = useState<any[]>([]);
+  const [experts, setExperts] = useState<any[]>(() => DEFAULT_EXPERTS);
   const [expertLoading, setExpertLoading] = useState(false);
   const [expertSearch, setExpertSearch] = useState('');
 
   // Modals & User Requests
   const [requestModalExpert, setRequestModalExpert] = useState<any | null>(null);
-  const [myRequests, setMyRequests] = useState<any[]>([]);
+  const [myRequests, setMyRequests] = useState<any[]>(() => getStoredRequests());
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
   const [requestSuccessBanner, setRequestSuccessBanner] = useState<string | null>(null);
@@ -99,6 +121,23 @@ export const ReportCenterPage: React.FC = () => {
     }
   }, [activeTab, expertCategory, expertSearch]);
 
+  const getFallbackResources = () => {
+    let fallback = [...DEFAULT_OFFICIAL_RESOURCES];
+    if (resCategory !== 'all') {
+      fallback = fallback.filter((r) => r.category === resCategory);
+    }
+    if (resSearch.trim()) {
+      const q = resSearch.trim().toLowerCase();
+      fallback = fallback.filter(
+        (r) =>
+          r.title.toLowerCase().includes(q) ||
+          r.description.toLowerCase().includes(q) ||
+          r.jurisdiction.toLowerCase().includes(q)
+      );
+    }
+    return fallback;
+  };
+
   const fetchResources = async () => {
     setResLoading(true);
     try {
@@ -106,12 +145,33 @@ export const ReportCenterPage: React.FC = () => {
       if (resCategory !== 'all') params.append('category', resCategory);
       if (resSearch.trim()) params.append('search', resSearch.trim());
       const data = await api.getResources(params.toString() ? `?${params.toString()}` : '');
-      setResources(data.resources || []);
+      if (data?.resources && Array.isArray(data.resources) && data.resources.length > 0) {
+        setResources(data.resources);
+      } else {
+        setResources(getFallbackResources());
+      }
     } catch {
-      // Ignore
+      setResources(getFallbackResources());
     } finally {
       setResLoading(false);
     }
+  };
+
+  const getFallbackExperts = () => {
+    let list = [...DEFAULT_EXPERTS];
+    if (expertCategory !== 'all') {
+      list = list.filter((e) => e.category === expertCategory);
+    }
+    if (expertSearch.trim()) {
+      const q = expertSearch.trim().toLowerCase();
+      list = list.filter(
+        (e) =>
+          e.full_name.toLowerCase().includes(q) ||
+          e.organization.toLowerCase().includes(q) ||
+          e.expertise_area.toLowerCase().includes(q)
+      );
+    }
+    return list;
   };
 
   const fetchExperts = async () => {
@@ -121,9 +181,13 @@ export const ReportCenterPage: React.FC = () => {
       if (expertCategory !== 'all') params.append('category', expertCategory);
       if (expertSearch.trim()) params.append('search', expertSearch.trim());
       const data = await api.getExperts(params.toString() ? `?${params.toString()}` : '');
-      setExperts(data.experts || []);
+      if (data?.experts && Array.isArray(data.experts) && data.experts.length > 0) {
+        setExperts(data.experts);
+      } else {
+        setExperts(getFallbackExperts());
+      }
     } catch {
-      // Ignore
+      setExperts(getFallbackExperts());
     } finally {
       setExpertLoading(false);
     }
@@ -131,11 +195,19 @@ export const ReportCenterPage: React.FC = () => {
 
   const fetchMyRequests = async () => {
     setRequestsLoading(true);
+    const local = getStoredRequests();
     try {
       const data = await api.getExpertRequests();
-      setMyRequests(data.requests || []);
+      const apiReqs = data?.requests || [];
+      const combined = [...apiReqs];
+      for (const loc of local) {
+        if (!combined.some((c: any) => c.id === loc.id)) {
+          combined.push(loc);
+        }
+      }
+      setMyRequests(combined.length > 0 ? combined : local);
     } catch {
-      // Ignore
+      setMyRequests(local);
     } finally {
       setRequestsLoading(false);
     }
@@ -217,7 +289,7 @@ The information submitted in this draft has been compiled in good faith for stat
       {/* Main Tabs Navigation */}
       <div className="flex border-b border-[#E2E8F0] dark:border-slate-800 gap-2">
         <button
-          onClick={() => setActiveTab('prepare')}
+          onClick={() => handleTabChange('prepare')}
           className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
             activeTab === 'prepare'
               ? 'border-[#14B8A6] text-[#14B8A6]'
@@ -229,7 +301,7 @@ The information submitted in this draft has been compiled in good faith for stat
         </button>
 
         <button
-          onClick={() => setActiveTab('official')}
+          onClick={() => handleTabChange('official')}
           className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
             activeTab === 'official'
               ? 'border-[#14B8A6] text-[#14B8A6]'
@@ -241,7 +313,7 @@ The information submitted in this draft has been compiled in good faith for stat
         </button>
 
         <button
-          onClick={() => setActiveTab('experts')}
+          onClick={() => handleTabChange('experts')}
           className={`pb-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
             activeTab === 'experts'
               ? 'border-[#14B8A6] text-[#14B8A6]'
@@ -687,7 +759,7 @@ The information submitted in this draft has been compiled in good faith for stat
 
                 <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
                   <span>
-                    Showing {experts.length} accredited investigative & legal profiles
+                    Showing {filteredExperts.length} accredited investigative & legal profiles
                   </span>
                   <span>
                     Official verified public sources & demonstration desks
@@ -702,20 +774,22 @@ The information submitted in this draft has been compiled in good faith for stat
                     <div className="w-7 h-7 border-2 border-[#14B8A6] border-t-transparent rounded-full animate-spin" />
                     <span>Loading directory profiles...</span>
                   </div>
-                ) : experts.length === 0 ? (
+                ) : filteredExperts.length === 0 ? (
                   <div className="col-span-3 py-16 text-center text-xs text-slate-400 bg-white dark:bg-[#0B1220] rounded-3xl border border-slate-200 dark:border-slate-800 p-8">
                     <Info className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="font-semibold text-slate-600 dark:text-slate-300">No experts found</p>
                     <p className="mt-1">Try selecting "All Experts" or adjusting your search terms.</p>
                   </div>
                 ) : (
-                  experts.map((exp) => {
+                  filteredExperts.map((exp) => {
                     // Determine category icon
                     let CategoryIcon = UserCheck;
                     if (exp.category === 'journalists') CategoryIcon = Newspaper;
                     else if (exp.category === 'fact_checkers') CategoryIcon = ShieldCheck;
                     else if (exp.category === 'legal_professionals') CategoryIcon = Scale;
                     else if (exp.category === 'organizations') CategoryIcon = Building2;
+
+                    const officialLink = exp.official_reference_url || exp.reference_url || '#';
 
                     return (
                       <div
@@ -786,7 +860,7 @@ The information submitted in this draft has been compiled in good faith for stat
                         <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
                           {exp.is_public_reference || !exp.can_receive_requests ? (
                             <a
-                              href={exp.reference_url}
+                              href={officialLink}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors"
