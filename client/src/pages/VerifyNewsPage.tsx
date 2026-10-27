@@ -79,11 +79,19 @@ export const VerifyNewsPage: React.FC = () => {
       formData.append('image', file);
       formData.append('language', selectedLanguage === 'auto' ? 'eng' : selectedLanguage);
 
-      const result = await api.uploadOcrImage(formData);
+      const result = await api.uploadOcrImage(
+        formData,
+        file,
+        selectedLanguage === 'auto' ? 'eng' : selectedLanguage,
+        (pct) => {
+          setPipelineStep(`Extracting text with Tesseract.js (${pct}%)...`);
+        }
+      );
       setTextContent(result.extractedText || '');
       setOcrConfidence(result.confidence || null);
     } catch (err: any) {
-      setError(`OCR extraction encountered an issue: ${err.message}. You can manually type or paste the message.`);
+      console.warn('OCR extraction warning:', err);
+      setError(`Could not extract text automatically from image (${err.message}). You can manually type or paste the message in the editor below.`);
     } finally {
       setOcrLoading(false);
       setPipelineStep(null);
@@ -260,7 +268,7 @@ export const VerifyNewsPage: React.FC = () => {
               {ocrLoading && (
                 <div className="flex items-center gap-2 text-xs text-teal-600 dark:text-teal-400 font-medium">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Extracting text with Tesseract.js OCR engine...</span>
+                  <span>{pipelineStep || 'Extracting text with Tesseract.js OCR engine...'}</span>
                 </div>
               )}
 
