@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowRight, AlertCircle, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, AlertCircle, Lock, Mail, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.js';
 import { TrustLensLogo } from '../components/common/TrustLensLogo.js';
 
@@ -122,6 +122,31 @@ export const LoginPage: React.FC = () => {
             <Link to="/register" className="font-bold text-[#14B8A6] hover:underline">
               Get Started
             </Link>
+          </div>
+
+          {/* Secondary Specialized Role Logins */}
+          <div className="mt-6 pt-5 border-t border-slate-200/80 dark:border-slate-800">
+            <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center mb-3">
+              Specialized Verification Access
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                to="/expert/login"
+                id="link-login-as-expert"
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-teal-500/30 bg-teal-50/50 hover:bg-teal-50 dark:bg-teal-950/20 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-xs font-bold transition-all shadow-sm"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Login as Expert</span>
+              </Link>
+              <Link
+                to="/admin/login"
+                id="link-login-as-admin"
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/60 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all shadow-sm"
+              >
+                <Lock className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Login as Admin</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

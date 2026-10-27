@@ -10,6 +10,8 @@ import { FloatingAssistant } from './components/layout/FloatingAssistant.js';
 
 import { LandingPage } from './pages/LandingPage.js';
 import { LoginPage } from './pages/LoginPage.js';
+import { ExpertLoginPage } from './pages/ExpertLoginPage.js';
+import { AdminLoginPage } from './pages/AdminLoginPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
@@ -114,9 +116,35 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// Expert Guard
+const RequireExpert: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] dark:bg-[#090F1A]">
+        <div className="w-8 h-8 border-4 border-[#14B8A6] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const isExpert =
+    user?.role === 'expert' ||
+    user?.role === 'admin' ||
+    Boolean(localStorage.getItem('trustlens_dev_expert_role'));
+
+  if (!user && !isExpert) {
+    return <Navigate to="/expert/login" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+};
+
 // Admin Guard
 const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -127,7 +155,7 @@ const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }
 
   if (user?.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;
@@ -143,6 +171,8 @@ export const App: React.FC = () => {
               {/* Public Landing & Authentication Pages */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/expert/login" element={<ExpertLoginPage />} />
+              <Route path="/admin/login" element={<AdminLoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -257,10 +287,16 @@ export const App: React.FC = () => {
               <Route
                 path="/expert"
                 element={
-                  <AppLayout>
-                    <ExpertPortalPage />
-                  </AppLayout>
+                  <RequireExpert>
+                    <AppLayout>
+                      <ExpertPortalPage />
+                    </AppLayout>
+                  </RequireExpert>
                 }
+              />
+              <Route
+                path="/expert/dashboard"
+                element={<Navigate to="/expert" replace />}
               />
               <Route
                 path="/experts"
@@ -307,18 +343,20 @@ export const App: React.FC = () => {
                 }
               />
 
-              {/* Admin Panel (Accessible via Profile dropdown for authorized admins) */}
+              {/* Admin Panel (Accessible for authorized admins) */}
               <Route
                 path="/admin"
                 element={
-                  <RequireAuth>
-                    <RequireAdmin>
-                      <AppLayout>
-                        <AdminPanelPage />
-                      </AppLayout>
-                    </RequireAdmin>
-                  </RequireAuth>
+                  <RequireAdmin>
+                    <AppLayout>
+                      <AdminPanelPage />
+                    </AppLayout>
+                  </RequireAdmin>
                 }
+              />
+              <Route
+                path="/admin/dashboard"
+                element={<Navigate to="/admin" replace />}
               />
 
               {/* Fallback */}

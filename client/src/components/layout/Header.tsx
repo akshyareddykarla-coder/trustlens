@@ -9,6 +9,7 @@ import {
   LogOut,
   Settings,
   Shield,
+  ShieldCheck,
   Menu,
   CheckCircle2,
   ExternalLink,
@@ -237,6 +238,17 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
                   <Settings className="w-3.5 h-3.5 text-slate-400" />
                   <span>Settings</span>
                 </Link>
+
+                {(user.role === 'expert' || user.role === 'admin') && (
+                  <Link
+                    to="/expert"
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex items-center gap-2.5 px-4 py-2 text-xs text-indigo-500 font-semibold hover:bg-indigo-500/10 transition-colors"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Expert Dashboard</span>
+                  </Link>
+                )}
 
                 {user.role === 'admin' && (
                   <Link
